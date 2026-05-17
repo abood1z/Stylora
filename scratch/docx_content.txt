@@ -1,0 +1,251 @@
+--- Paragraphs ---
+P0: stylora
+P2: BACHELOR'S DEGREE
+P3: INFORMATION TECHNOLOGY
+P4: AL-HUSSEIN BIN TALAL UNIVERSITY 
+P7: Permission to Use
+P8: In presenting this project in fulfilment of the requirements for a Degree of
+Bachelor of Information Technology from Al-Hussein Bin Talal University, We agree that the University Library may make it freely available for inspection. We further agree that permission for the copying of this project in any manner, in whole or in part, for scholarly purpose may be granted by my supervisor(s) or, in their absence, by the College of Information Technology. It is understood that any copying or publication or use of this project or parts thereof for financial gain shall not be allowed without my written permission. It is also understood that due recognition shall be given to me and to Al-Hussein Bin Talal University for any scholarly use which may be made of any material from my project.
+P10: Requests for permission to copy or to make other use of materials in this project, in whole or in part, should be addressed to:
+P11: 
+• Supervisor:  Dr. anas abu karaki 
+P12: • Team Leader: abdel rahman melhem, 120230615091@st.ahu.edu.jo. 
+P13: • mohammad alalil, 120220622001@st.ahu.edu.jo 
+P14: • abdel rahman alnaimat, 120220615035@st.ahu.edu.jo. 
+P15: • Hamza wishah, 120210622008@st.ahu.edu.jo. 
+P16: • Yanal munther alsalameen, 120210615024@st.ahu.edu.jo.  
+P17: College of Information Technology
+P18: Al-Hussein Bin Talal University
+P19:                                                                                   Ma’an, Jordan 
+P21:                                                             Abstract
+P22: This project aims to bridge the gap between local fashion retailers and consumers by developing an AI-powered smart fashion assistant. Many users struggle with outfit coordination and underutilizing their existing wardrobes, while local markets face intense competition from global brands. The proposed system addresses these challenges by integrating Computer Vision and Recommendation Systems.
+P23: The core of the application utilizes a Convolutional Neural Network (CNN) to analyze garment images, extracting key features such as type and color. Based on these attributes, a personalized Recommendation System suggests coordinated outfits, including a "Virtual Try-on" feature that allows users to visualize garments before purchase. Furthermore, the platform empowers the local market by providing an integrated e-commerce marketplace for local vendors. Experimental results demonstrate the system's ability to enhance the shopping experience, maximize wardrobe utility, and support local economic competition through advanced technology.
+P24: Keywords: Computer Vision, CNN, Virtual Try-on, Recommendation Systems, Fashion Tech, Local Market.
+P27:                                                        Acknowledgement
+P28: First, we extend our sincere thanks to Allah Almighty, who has guided us and supported us throughout the journey of this project.
+P29: This project is submitted by the students of the College of Information Technology at Al-Hussein Bin Talal University. We hope that it will be a valuable contribution that keeps pace with the current technological era and the digital transformation in Jordan. We also extend our thanks to Mr. Tariq Ghonmein for his cooperation and support.
+P30: We would like to express our sincere gratitude to our supervisor, Dr. Anas Abu Karaki, for his continuous support, valuable guidance, and constructive feedback throughout the development of this project. His insights and encouragement were instrumental in the successful completion of our work.
+P31: Our heartfelt thanks also go to all the faculty members of the College of Information Technology for providing us with the knowledge and skills that helped us accomplish this project.
+P32: To our family and friends, thank you for your continued support and encouragement. Your trust in us, even on the most difficult days, has kept us going, and we are so grateful for your presence in our lives.
+P33: We ask Allah for success and guidance in all our future endeavors.
+P34: Table of Contents
+P35: Permission to Use	i
+P36: Abstract	ii
+P37: Acknowledgement	iii
+P38: Table of Contents	iv
+P39: List of Tables	vi
+P40: List of Figures	vii
+P41: List of Appendices	viii
+P42: Glossary of Terms	ix
+P43: List of Abbreviations	x
+P44: CHAPTER 1 Introduction	1
+P45: 1.1 Project Background	2
+P46: 1.2 Problem Statement	2
+P47: 1.3 Project Objectives	2
+P48: 1.4 Project Significance	2
+P49: 1.5 Project Gantt Chart	3
+P50: CHAPTER 2 LITERATURE REVIEW	4
+P51: 2.1 Definitions	4
+P52: 2.1.1 First Paragraph Following a Heading (Heading 3)	4
+P53: 2.1.1.1 Heading 4	4
+P54: 2.1.1.1.1 Heading 5	4
+P55: 2.2 Tables	5
+P56: 2.3 Figures	6
+P57: CHAPTER 3 Methodology	7
+P58: 3.1 Construct Framework	8
+P59: 3.2 Develop System Architecture	8
+P60: 3.3 Analyze and Design the System	8
+P61: 3.4 Build the Prototype System	8
+P62: 3.5 Observe and Evaluate the System	9
+P63: CHAPTER 4 ANALYSIS AND DESIGN	10
+P64: 4.1 Analysis	10
+P65: 4.1.1 Requirements Determination	10
+P66: 4.1.2 System's Requirements	10
+P67: 4.2 Design	11
+P68: 4.2.1 Logical Design	11
+P69: 4.2.1.1 Use Case Diagram	11
+P70: 4.2.1.2 Sequence Diagrams	11
+P71: 4.2.1.3 Data Flow Diagram	11
+P72: 4.2.1.4 Entity Relationship Diagram	11
+P73: 4.2.2 Physical Design	12
+P74: CHAPTER 5 findingS	13
+P75: 5.1 Introduction	13
+P76: 5.2 Project Interfaces and their Description	13
+P77: CHAPTER 6 OBSERVE AND EVALUATE	14
+P78: CHAPTER 7 CONCLUSION	15
+P79: 7.1 Conclusion	15
+P80: 7.2 Limitations	15
+P81: 7.3 Future Works	15
+P82: references	16
+P85:                                                         CHAPTER 1
+                                           INTRODUCTION
+P86: This chapter provides a comprehensive overview of the research project. It begins by establishing the background and context of the smart fashion industry and the challenges faced by local retailers and consumers. Furthermore, it outlines the problem statement, the specific objectives the project aims to achieve, and the overall significance of integrating AI technologies like Computer Vision into the local fashion market.
+P87: 
+
+
+1.1  Project Background                                                                    
+
+P88: In recent years, the global fashion industry has undergone a massive digital transformation. With the rise of e-commerce and artificial intelligence, consumers are increasingly looking for more personalized and interactive shopping experiences. Technologies such as Computer Vision and Recommendation Systems have become essential tools for modern retailers to understand consumer behavior and provide tailored suggestions.
+P90: 
+However, despite the abundance of choices, many consumers face a persistent challenge known as 'wardrobe underutilization.' Users often struggle to coordinate their existing garments effectively or visualize how new purchases will fit into their current collection. This gap leads to inefficient shopping habits and a lack of confidence in personal styling, creating a demand for intelligent assistants that can bridge the gap between owning clothes and wearing them stylistically.
+P92:  
+On the other hand, local fashion retailers face intense competition from global giants who possess advanced technological infrastructures. Many local vendors lack the digital platforms necessary to showcase their products effectively or provide the high-tech features (like Virtual Try-ons) that modern shoppers expect. This technological divide puts the local economy at a disadvantage, limiting the growth of home-grown fashion brands.
+P94: Therefore, there is a critical need for an integrated platform that empowers both consumers and local vendors. By leveraging deep learning techniques, specifically Convolutional Neural Networks (CNNs) for garment analysis, this project introduces a smart fashion assistant. This system not only helps users maximize their wardrobe utility through AI-driven recommendations but also provides local retailers with a competitive edge in the digital marketplace.
+P96: 1.2 Problem Statement
+P97: The fashion retail industry faces several critical challenges that affect both consumers and local vendors. These problems can be summarized in the following points:
+P98: Inefficient Wardrobe Utilization: Many consumers struggle with outfit coordination, leading to the "underutilization" of their existing wardrobes. Without an intelligent system to suggest combinations based on color and style, users often make repetitive or 
+unnecessary purchases.
+
+
+P99: Lack of Visualization in E-commerce: A major barrier to online fashion shopping is the inability to visualize how a garment will look on the user before purchase. This uncertainty leads to lower conversion rates for retailers and a higher rate of product returns.
+
+
+P100: Technological Gap for Local Retailers: Local fashion markets in Jordan and the region face intense competition from global brands that utilize advanced AI and AR technologies. Most local vendors lack a unified digital platform that offers high-tech features like virtual try-ons or personalized recommendation systems, making it difficult for them to retain tech-savvy customers.
+P102: 1.3 Project Objectives
+P103: The primary goal of this project is to develop an AI-powered fashion assistant that enhances the user’s shopping experience and supports the local market. The specific objectives are as follows:
+P104: Implement a Garment Recognition System: To develop a Convolutional Neural Network (CNN) model capable of analyzing clothing images and extracting key features such as type, color, and style.
+
+
+P105: Build a Personalized Recommendation Engine: To create an intelligent system that suggests coordinated outfits based on the user's existing wardrobe and current fashion trends.
+
+
+P106: Develop a Virtual Try-on Feature: To provide a digital visualization tool that allows consumers to see how garments look on a virtual representation before completing a purchase.
+
+
+P107: Establish a Local E-commerce Marketplace: To design a platform that connects local fashion retailers with consumers, providing them with advanced technological tools to compete with global brands.
+P108: Enhance Wardrobe Sustainability: To help users maximize the utility of their current clothes by providing smart styling suggestions, reducing unnecessary purchases.
+P109: 
+
+1.4 Project Significance
+P110: The significance of this project lies in its potential to transform the local fashion retail experience by integrating advanced AI technologies. The importance of this work can be highlighted through the following aspects:
+P111: Economic Impact on Local Markets: By providing local vendors with a high-tech platform, the project helps level the playing field against global fashion giants. This encourages consumers to support local businesses, thereby boosting the local economy and promoting home-grown brands.
+
+
+P112: Enhanced Consumer Experience: The integration of a "Virtual Try-on" feature and a smart recommendation engine directly addresses the common "uncertainty" in online shopping. This leads to higher customer satisfaction, reduced product return rates, and a more interactive shopping journey.
+
+
+P113: Technological Advancement: This project demonstrates the practical application of Deep Learning and Computer Vision (specifically CNNs) in the retail sector. It serves as a model for how specialized AI can solve daily life problems, such as wardrobe coordination and personal styling.
+
+
+P114: Sustainability and Efficiency: By helping users better utilize their existing wardrobes through intelligent styling suggestions, the project promotes more sustainable fashion consumption and reduces waste caused by unnecessary purchases.
+P116: 1.5 Project Gantt Chart
+P117:  
+To ensure efficient project management and timely delivery, a detailed Gantt chart has been developed to outline the 14-week execution plan. The project follows a structured methodology where several tasks run in parallel to maximize productivity. While the UI/UX design team focuses on the visual interface and user experience, the backend team works simultaneously on dataset collection and CNN model training. This overlapping approach allows for early integration testing starting from the seventh week, ensuring that the AI recommendations and the Virtual Try-on feature are seamlessly embedded within the application core before the final evaluation phase.
+
+
+                                            
+                                                             Figure 1.1 Gant Chart
+P119:                                                             CHAPTER 2
+                                           LITERATURE REVIEW
+
+
+P120: As digital transformation continues to reshape the global retail industry, there has been a significant surge in utilizing artificial intelligence and computer vision to enhance the consumer shopping experience. This evolution is particularly evident in the fashion sector, where visual perception and personalized recommendations are paramount to reducing purchase uncertainty. This chapter conducts a thorough review of existing technologies and similar implementations, such as "Virtual Try-on" systems and CNN-based garment classification. By analyzing previous research and real-world platforms, we aim to identify current benchmarks and highlight the unique contribution of our platform in supporting the local Jordanian market with a smarter, more interactive fashion assistant.
+P122: 2.1 Definitions
+P123: In this section, we define the core technical terms and architectural patterns utilized in the development of the Stylora application to ensure a clear understanding of the system's framework.
+P124: 2.1.1 Feature-Driven Architecture An architectural pattern in software development where the project structure is organized based on specific functional features (e.g., Camera, Shop, Auth) rather than file types. This approach enhances scalability, modularity, and maintainability of the codebase.
+P125: 2.1.2 State Management (Riverpod) A reactive caching and state management framework for Flutter. In Stylora, Riverpod is used to synchronize data flow between the AI models and the user interface, ensuring a responsive and lag-free experience.
+P126: 2.1.3 Cloud Backend (Firebase) A platform developed by Google for creating mobile and web applications. It provides essential services used in this project, such as Firestore for real-time database management and Authentication for secure user access.
+P127: 2.1.4 Convolutional Neural Networks (CNN) The primary deep learning architecture used for visual data processing. In our system, CNNs are responsible for classifying garments and detecting style features from images captured via the mobile camera.
+P128: 2.1.5 Virtual Try-on (VTO) An AI-driven feature that enables users to visualize garments on their digital profile or body image. This bridges the gap between digital browsing and the physical fitting room experience.
+P129: 2.1.6 Application Programming Interface (API) The communication bridge that allows the mobile frontend to send image data to the backend AI services and retrieve classification or recommendation results.
+P130: 
+
+
+
+2.2 Related Projects
+
+
+In recent years, several global platforms and systems have been developed in the field of AI-driven fashion, visual retail assistants, and smart recommendations. This section reviews some of the most prominent implementations that share core functionalities with our proposed solution.
+
+
+2.2.1 Amazon StyleSnap
+P131: Amazon StyleSnap is an AI-powered feature within the Amazon App that allows users to upload a photo or screenshot of a fashion look they like. The system uses advanced computer vision and deep learning models to identify the specific garments and suggest similar products available on Amazon's marketplace. This system focuses on "Visual Search" technology to simplify the shopping journey.
+
+
+
+
+                  Figure 2.1: Amazon StyleSnap visual search and product matching.
+
+2.2.2 ASOS Virtual Try-on (See My Fit)
+
+ASOS implemented an augmented reality tool called "See My Fit," which aims to show customers how products look on different body types. By digitally mapping garments onto human models using AI algorithms, the system provides a simulated virtual try-on experience. This helps users visualize the fit and drape of the clothing, effectively reducing the rate of product returns in the fashion industry.
+
+   
+
+
+
+
+
+                               Figure 2.2: ASOS "See My Fit" virtual try-on interface.
+P132: 
+
+
+
+
+
+
+
+
+
+
+
+
+
+2.2.3 Pinterest Lens and Visual Recommendations
+
+Pinterest Lens utilizes computer vision to identify clothing items within any photo or "Pin" on the platform. Beyond simple identification, the system leverages massive datasets to provide personalized mix-and-match recommendations. It suggests complementary pieces and complete outfits based on aesthetic principles, helping users discover new styles that match their existing wardrobe.
+
+
+
+
+                            
+                                   Figure 2.3: AI-driven automated outfit recommendations.
+P136: 2.2.4 Advanced Body Modeling in Stylevue
+
+P137: As seen in Figure 2.4, the "Stylevue" platform provides a sophisticated interface that leverages granular body measurement input and 3D modeling. The system allows users to "Adjust your body shape" across key anthropometric areas like the chest, shoulders, waist, and hips, creating a highly personalized digital avatar. Beyond simple classification, this interface demonstrates how detailed biometric data (height, weight, specific limb measurements) are used by AI to generate accurate size predictions and power a virtual wardrobe experience. This level of user control is essential for reducing purchase uncertainty in the fashion sector.
+
+
+
+
+
+
+ 
+Figure 2.4: Stylevue interface showing personalized 3D body shape modeling and size calculation.
+P139: 2.3 Comparison with Our System
+P140: To summarize the key findings from the review of related projects and clearly highlight the unique value proposition of our "Stylora" platform, a detailed comparison is presented in Table 2.1. This comparison is based on critical functional criteria that directly impact the Jordanian retail fashion sector. Our analysis identifies current technical benchmarks and underscores how Stylora will deliver a smarter, more integrated visual assistant tailored to local market needs.
+
+
+
+P141:                     Table 2.1: Functional Comparison of Related Projects vs. Stylora
+P142: Stylora ER Diagram (Entity Relationship)
+P143: This diagram describes the data structure and relationships within the Stylora application database (Firestore).
+P147: Entity Descriptions:
+P148: 1. User: The central entity. Users can be regular customers or traders.
+P149: 2. Closet_Item: Garments uploaded by users. These are processed by the AI to extract color and category.
+P150: 3. Outfit: A collection of Closet_Items grouped together by the user or suggested by the AI matching service.
+P151: 4. Product: Commercial items listed by Traders for Sale in the marketplace.
+P153: Key Relationships:
+P154: One-to-Many (1:N): One User can have multiple items in their closet and multiple saved outfits.
+P155: Trader Relationship: A Trader (User type) is linked to many Products.
+P156: Many-to-Many (N:M): An Outfit can contain multiple Closet Items, and a single Closet Item can be part of multiple Outfits.
+P165: Stylora Project Flowchart
+P166: This document outlines the application flow and logic for the Stylora graduation project.
+P170: Flow Description:
+P171: 1. Authentication & Entry: Validates user state (new user vs. returning user) and manages session persistence.
+P172: 2. AI Vision Pipeline: Triggered when a user uploads a garment. YOLOv11 segments the item, removes the background, and identifies fashion attributes (color, category).
+P173: 3. Virtual Closet: Stores processed items for digital organization and quick access.
+P174: 4. Recommendation Engine: Uses item metadata to suggest color-coordinated outfits.
+P175: 5. E-commerce Module: Features a dual-user experience: 
+P176: Customer: Shops and views high-fidelity try-ons.
+P177: Trader: Manages inventory and sales through a dedicated dashboard.
+
+--- Tables ---
+
+Table 0:
+R0: Features / Criterion | Amazon StyleSnap | ASOS See My Fit | Pinterest Lens | Stylevue Modeling | Stylora (Our Project) | 
+R1: Visual Search (Scan & Find) | ✅ Yes | ❌ No | ✅ Yes | ❌ No | ✅ Yes (Core) | 
+R2: Virtual Try-on (VTO) | ⚠️ Limited | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes (3D Modeling) | 
+R3: Automated Outfit Generation | ⚠️ Recommendations | ❌ No | ✅ Yes (Strong) | ⚠️ Suggested Fit | ✅ Yes (Smart Stylist) | 
+R4: Personalized Digital Avatar | ❌ No | ✅ Yes | ❌ No | ✅ Yes (Granular) | ✅ Yes (Biometric-driven) | 
+R5: Jordanian Local Market Support | ❌ No | ❌ No | ❌ No | ❌ No | ✅ Yes (Key Focus) | 
+R6: Integration with Local Retailers | ❌ No | ❌ No | ❌ No | ❌ No | ✅ Yes (Merchant Support) | 

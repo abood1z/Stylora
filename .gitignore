@@ -47,3 +47,5 @@ app.*.map.json
 # Generated APKs by build script
 /builds/
 
+GoogleService-Info.plist
+google-services.json

@@ -13,7 +13,7 @@ class OutfitModel {
   OutfitModel({
     required this.id,
     required this.userID,
-    this.name = 'تنسيق جديد',
+    this.name = 'newOutfit',
     required this.itemIds,
     required this.itemImageUrls,
     DateTime? createdAt,
@@ -44,7 +44,7 @@ class OutfitModel {
     return OutfitModel(
       id: doc.id,
       userID: data['userID'] ?? '',
-      name: data['name'] ?? 'تنسيق جديد',
+      name: data['name'] ?? 'newOutfit',
       itemIds: List<String>.from(data['itemIds'] ?? []),
       itemImageUrls: List<String>.from(data['itemImageUrls'] ?? []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),

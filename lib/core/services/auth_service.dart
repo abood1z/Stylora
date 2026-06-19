@@ -61,10 +61,23 @@ class AuthService {
   }
 
   // تسجيل الدخول باستخدام Google
-  Future<UserCredential?> signInWithGoogle() async {
+  Future<UserCredential?> signInWithGoogle({bool isLogin = false, bool silent = false}) async {
     try {
       final googleSignIn = GoogleSignIn();
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      GoogleSignInAccount? googleUser;
+
+      if (silent) {
+        // محاولة تسجيل الدخول الصامت دون إظهار شاشة اختيار الحساب
+        googleUser = await googleSignIn.signInSilently();
+      }
+
+      if (googleUser == null) {
+        if (!silent) {
+          await googleSignIn.signOut(); // إجبار ظهور شاشة اختيار الحساب في كل مرة
+        }
+        googleUser = await googleSignIn.signIn();
+      }
+
       if (googleUser == null) return null; // المستخدم ألغى العملية
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -73,7 +86,15 @@ class AuthService {
         idToken: googleAuth.idToken,
       );
 
-      return await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      
+      if (isLogin && userCredential.additionalUserInfo?.isNewUser == true) {
+        await userCredential.user?.delete();
+        await googleSignIn.signOut();
+        throw Exception('account_not_found');
+      }
+
+      return userCredential;
     } catch (e) {
       debugPrint('AuthService: signInWithGoogle error: $e');
       rethrow;

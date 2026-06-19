@@ -26,8 +26,8 @@ class AIAutomationService {
     // 1. استخراج الفئة واللون باستخدام نموذج الذكاء الاصطناعي (نأخذ أول قطعة مكتشفة)
     final analysisList = await _aiModelService.analyzeImage(imageFile);
     final analysis = analysisList.isNotEmpty ? analysisList.first : {};
-    final category = (analysis['category'] as String?) ?? 'تحليل غير معروف';
-    final color = (analysis['color'] as String?) ?? 'لون غير معروف';
+    final category = (analysis['category'] as String?) ?? 'unknown';
+    final color = (analysis['color'] as String?) ?? 'unknown';
 
     // 2. إنشاء كائن المنتج مع البيانات المستخرجة والوصف
     final product = ProductModel(
@@ -59,8 +59,8 @@ class AIAutomationService {
     // 1. استخراج الفئة واللون باستخدام الذكاء الاصطناعي (نأخذ أول قطعة مكتشفة)
     final analysisList = await _aiModelService.analyzeImage(imageFile);
     final analysis = analysisList.isNotEmpty ? analysisList.first : {};
-    final category = (analysis['category'] as String?) ?? 'تحليل غير معروف';
-    final color = (analysis['color'] as String?) ?? 'لون غير معروف';
+    final category = (analysis['category'] as String?) ?? 'unknown';
+    final color = (analysis['color'] as String?) ?? 'unknown';
 
     // 2. إنشاء كائن قطعة الخزانة
     final item = ClosetItemModel(

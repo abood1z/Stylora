@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/providers/settings_provider.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/ai_model_service.dart';
+import 'core/services/firebase_seeder.dart';
 
 // نقطة البداية للتطبيق
 void main() async {
@@ -34,6 +36,13 @@ void main() async {
       // تحميل نماذج الذكاء الاصطناعي مسبقاً (Pre-loading) لكي تكون جاهزة فوراً
       AIModelService().loadModels();
       
+      // تهيئة قاعدة البيانات بالبيانات الأساسية الحقيقية إذا كانت فارغة
+      try {
+        await FirebaseSeeder.seedInitialData();
+      } catch (seederErr) {
+        debugPrint('FirebaseSeeder Warning: $seederErr');
+      }
+      
       // تأجيل تنظيف الروابط المكسورة لـ 10 ثواني بعد التشغيل لضمان سرعة فائقة
       Future.delayed(const Duration(seconds: 10), () => _cleanBrokenImageLinks());
     });
@@ -48,16 +57,6 @@ void main() async {
       supportedLocales: const [
         Locale('en'),
         Locale('ar'),
-        Locale('fr'),
-        Locale('tr'),
-        Locale('es'),
-        Locale('de'),
-        Locale('it'),
-        Locale('pt'),
-        Locale('ru'),
-        Locale('ja'),
-        Locale('zh'),
-        Locale('ko'),
       ],
       // مسار ملفات الترجمة في مجلد الأصول (assets)
       path: 'assets/translations',
@@ -112,14 +111,22 @@ class StyloraApp extends ConsumerWidget {
 // وظيفة ذكية لتنظيف وتصحيح روابط الصور المكسورة في Firestore
 Future<void> _cleanBrokenImageLinks() async {
   try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     final db = FirebaseFirestore.instance;
+    final userDoc = await db.collection('users').doc(user.uid).get();
+    if (!userDoc.exists || userDoc.data()?['role'] != 'admin') {
+      return;
+    }
+
     final collections = ['Products', 'User_Closet', 'daily_looks', 'outfits'];
     
     // روابط Unsplash جديدة ومضمونة
     final validImages = [
-      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500',
-      'https://images.unsplash.com/photo-1539109132304-372873aee81b?w=500',
-      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=500',
+      'https://images.unsplash.com/photo-1488161628813-04466f872be2?w=500',
+      'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500',
+      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=500',
       'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500',
     ];
 

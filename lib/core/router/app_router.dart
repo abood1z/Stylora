@@ -16,6 +16,7 @@ import '../../features/profile/presentation/pages/settings_screen.dart';
 import '../../features/auth/presentation/pages/complete_profile_screen.dart';
 import '../../features/trader/presentation/pages/trader_dashboard_screen.dart';
 import '../../features/trader/presentation/pages/add_product_screen.dart';
+import '../../features/trader/presentation/pages/edit_product_screen.dart';
 import '../../features/home/presentation/pages/closet_screen.dart';
 import '../../features/home/presentation/pages/search_results_screen.dart';
 import '../../features/onboarding/presentation/pages/splash_screen.dart';
@@ -27,25 +28,71 @@ import '../../features/auth/presentation/pages/otp_screen.dart';
 import '../../features/profile/presentation/pages/location_setup_screen.dart';
 import '../../features/camera/presentation/pages/live_tryon_screen.dart';
 import 'package:camera/camera.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../features/shop/presentation/pages/product_details_screen.dart';
+import '../../features/shop/presentation/pages/cart_screen.dart';
+import '../../features/shop/presentation/pages/checkout_screen.dart';
+import '../../features/profile/presentation/pages/order_history_screen.dart';
+import '../../features/admin/presentation/pages/admin_dashboard_screen.dart';
+import 'navigation_keys.dart';
 
-// مفاتيح التنقل العامة للتطبيق
-final rootNavigatorKey = GlobalKey<NavigatorState>();
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
+class RouterRefreshListenable extends ChangeNotifier {
+  final Ref _ref;
+  final List<ProviderSubscription> _subscriptions = [];
+  bool _isDisposed = false;
+
+  bool isGuest = false;
+  Map<String, dynamic>? userData;
+  bool isOTPVerified = false;
+
+  RouterRefreshListenable(this._ref) {
+    isGuest = _ref.read(isGuestProvider);
+    userData = _ref.read(settingsProvider).userData;
+    isOTPVerified = _ref.read(otpVerifiedProvider);
+
+    _subscriptions.add(_ref.listen<AsyncValue<User?>>(authStateProvider, (_, __) => _onChanged()));
+    _subscriptions.add(_ref.listen<bool>(isGuestProvider, (_, next) {
+      isGuest = next;
+      _onChanged();
+    }));
+    _subscriptions.add(_ref.listen<Map<String, dynamic>?>(
+      settingsProvider.select((s) => s.userData),
+      (_, next) {
+        userData = next;
+        _onChanged();
+      },
+    ));
+    _subscriptions.add(_ref.listen<bool>(otpVerifiedProvider, (_, next) {
+      isOTPVerified = next;
+      _onChanged();
+    }));
+  }
+
+  void _onChanged() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    for (final sub in _subscriptions) {
+      sub.close();
+    }
+    super.dispose();
+  }
+}
 
 // تعريف بروفايدر الروتر (GoRouter) لإدارة حركة التنقل
 final routerProvider = Provider<GoRouter>((ref) {
-  // مراقبة حالة المصادقة والضيف والبيانات الشخصية للتوجيه التلقائي
-  ref.watch(authStateProvider);
-  final isGuest = ref.watch(isGuestProvider);
-  // راقب فقط البيانات التي تؤثر على التوجيه (Redirection) مثل اكتمال الملف الشخصي
-  final userData = ref.watch(settingsProvider.select((s) => s.userData));
-  final isOTPVerified = ref.watch(otpVerifiedProvider);
+  final refreshListenable = RouterRefreshListenable(ref);
+  ref.onDispose(() => refreshListenable.dispose());
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
-    // تهيئة مستمع لتغييرات حالة المصادقة لتحديث المسارات تلقائياً عند الدخول/الخروج
-    refreshListenable: AuthRefreshListenable(),
+    refreshListenable: refreshListenable,
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
       final isLoggingIn =
@@ -53,6 +100,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isSplash = state.uri.toString() == '/splash';
 
       if (isSplash) return null; // السماح بعرض شاشة البداية دائماً
+
+      final isGuest = refreshListenable.isGuest;
+      final userData = refreshListenable.userData;
+      final isOTPVerified = refreshListenable.isOTPVerified;
 
       // توجيه المستخدم لصفحة تسجيل الدخول إذا لم يكن مسجلاً وليس ضيفاً
       if (user == null && !isGuest) {
@@ -62,6 +113,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       // منطق التعامل مع المستخدم المسجل
       if (user != null) {
         if (userData == null) return null; // بانتظار تحميل بيانات المستخدم
+
+        final role = userData['role'] ?? 'user';
+        if (role == 'admin') {
+          final currentPath = state.uri.toString();
+          if (currentPath != '/admin') {
+            return '/admin';
+          }
+          return null;
+        }
 
         final is2FAEnabled = userData['is2FAEnabled'] ?? false;
         final isProfileComplete = userData['isProfileComplete'] ?? false;
@@ -163,7 +223,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       ShellRoute(
-        navigatorKey: _shellNavigatorKey,
+        navigatorKey: shellNavigatorKey,
         builder: (context, state, child) {
           return MainNavigationScreen(child: child);
         },
@@ -171,7 +231,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/home',
             builder: (context, state) {
-              final settings = ref.read(settingsProvider);
+              final settings = ref.watch(settingsProvider);
+              final user = FirebaseAuth.instance.currentUser;
+              final isGuest = ref.watch(isGuestProvider);
+              if (user != null && settings.userData == null && !isGuest) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
               final role = settings.userData?['role'] ?? 'user';
               if (role == 'merchant' || role == 'trader') {
                 return const TraderDashboardScreen();
@@ -182,7 +249,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/matching',
             builder: (context, state) {
-              final role = ref.read(settingsProvider.select((s) => s.userData?['role'])) ?? 'user';
+              final settings = ref.watch(settingsProvider);
+              final user = FirebaseAuth.instance.currentUser;
+              final isGuest = ref.watch(isGuestProvider);
+              if (user != null && settings.userData == null && !isGuest) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final role = settings.userData?['role'] ?? 'user';
               if (role == 'merchant' || role == 'trader') {
                 return const Center(child: Text('Coming Soon: My Products List'));
               }
@@ -197,10 +272,34 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'product/:id',
                 builder: (context, state) {
                   final productId = state.pathParameters['id'] ?? '';
-                  // هنا نضع شاشة تفاصيل المنتج القادمة من الـ Deep Link
-                  return Scaffold(
-                    appBar: AppBar(title: Text('Product $productId')),
-                    body: Center(child: Text('Product Details ID: $productId\nجاهزة للربط مع قاعدة البيانات')),
+                  final extra = state.extra;
+
+                  if (extra is Map<String, dynamic>) {
+                    return ProductDetailsScreen(product: extra);
+                  }
+
+                  // جلب بيانات المنتج من Firestore إذا لم يكن ممرراً في الـ extra
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance.collection('Products').doc(productId).get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+                        return Scaffold(
+                          appBar: AppBar(title: Text('error'.tr())),
+                          body: Center(child: Text('productNotFoundOrError'.tr())),
+                        );
+                      }
+
+                      final doc = snapshot.data!;
+                      final data = doc.data() as Map<String, dynamic>;
+                      data['id'] = doc.id;
+
+                      return ProductDetailsScreen(product: data);
+                    },
                   );
                 },
               ),
@@ -234,6 +333,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/edit-product',
+        pageBuilder: (context, state) {
+          final productMap = state.extra as Map<String, dynamic>;
+          return PremiumTransitions.slideUpPage(
+            child: EditProductScreen(productMap: productMap),
+            state: state,
+          );
+        },
+      ),
+      GoRoute(
         path: '/virtual-try-on',
         pageBuilder: (context, state) => PremiumTransitions.fadeScalePage(
           child: const VirtualTryOnScreen(),
@@ -244,6 +353,34 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/live-try-on',
         pageBuilder: (context, state) => PremiumTransitions.slideUpPage(
           child: LiveTryOnScreen(cameras: state.extra as List<CameraDescription>),
+          state: state,
+        ),
+      ),
+      GoRoute(
+        path: '/cart',
+        pageBuilder: (context, state) => PremiumTransitions.slideUpPage(
+          child: const CartScreen(),
+          state: state,
+        ),
+      ),
+      GoRoute(
+        path: '/checkout',
+        pageBuilder: (context, state) => PremiumTransitions.slideUpPage(
+          child: const CheckoutScreen(),
+          state: state,
+        ),
+      ),
+      GoRoute(
+        path: '/order-history',
+        pageBuilder: (context, state) => PremiumTransitions.slideUpPage(
+          child: const OrderHistoryScreen(),
+          state: state,
+        ),
+      ),
+      GoRoute(
+        path: '/admin',
+        pageBuilder: (context, state) => PremiumTransitions.fadeScalePage(
+          child: const AdminDashboardScreen(),
           state: state,
         ),
       ),
@@ -262,8 +399,20 @@ class MainNavigationScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final user = FirebaseAuth.instance.currentUser;
+    final isGuest = ref.watch(isGuestProvider);
+
+    if (user != null && settings.userData == null && !isGuest) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     // تحديد شكل شريط التنقل بناءً على دور المستخدم (تاجر أم عميل) من الإعدادات
-    final role = ref.watch(settingsProvider.select((s) => s.userData?['role'] ?? 'user'));
+    final role = settings.userData?['role'] ?? 'user';
     final isMerchant = role == 'merchant' || role == 'trader';
     final selectedIndex = _calculateSelectedIndex(context, isMerchant);
 
@@ -409,16 +558,20 @@ class MainNavigationScreen extends ConsumerWidget {
 
 
   static int _calculateSelectedIndex(BuildContext context, bool isMerchant) {
-    final String location = GoRouterState.of(context).uri.toString();
-    if (isMerchant) {
-      if (location.startsWith('/home')) return 0;
-      if (location.startsWith('/shop')) return 1; // Reuse /shop or add /inventory
-      if (location.startsWith('/profile')) return 2;
-    } else {
-      if (location.startsWith('/home')) return 0;
-      if (location.startsWith('/matching')) return 1;
-      if (location.startsWith('/shop')) return 2;
-      if (location.startsWith('/profile')) return 3;
+    try {
+      final String location = GoRouterState.of(context).uri.toString();
+      if (isMerchant) {
+        if (location.startsWith('/home')) return 0;
+        if (location.startsWith('/shop')) return 1; // Reuse /shop or add /inventory
+        if (location.startsWith('/profile')) return 2;
+      } else {
+        if (location.startsWith('/home')) return 0;
+        if (location.startsWith('/matching')) return 1;
+        if (location.startsWith('/shop')) return 2;
+        if (location.startsWith('/profile')) return 3;
+      }
+    } catch (_) {
+      // Safeguard against assertion errors during router state transitions
     }
     return 0;
   }
@@ -460,10 +613,4 @@ class MainNavigationScreen extends ConsumerWidget {
   }
 }
 
-class AuthRefreshListenable extends ChangeNotifier {
-  AuthRefreshListenable() {
-    FirebaseAuth.instance.authStateChanges().listen((user) {
-      notifyListeners();
-    });
-  }
-}
+

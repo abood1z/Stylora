@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/utils/context_ext.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../shared/widgets/custom_button.dart';
@@ -26,9 +25,9 @@ class _CameraAnalysisScreenState extends State<CameraAnalysisScreen> {
   final AIModelService _aiService = AIModelService();
   final FirestoreService _firestoreService = FirestoreService();
   final ImagePicker _picker = ImagePicker();
-  
-  File? _selectedImage; 
-  bool _isProcessing = false; 
+
+  File? _selectedImage;
+  bool _isProcessing = false;
   List<Map<String, dynamic>> _detectedItems = [];
   final Map<int, bool> _isSavingMap = {}; // تتبع حالة الحفظ لكل قطعة
 
@@ -44,7 +43,7 @@ class _CameraAnalysisScreenState extends State<CameraAnalysisScreen> {
 
     setState(() {
       _selectedImage = File(image.path);
-      _detectedItems = []; 
+      _detectedItems = [];
       _isSavingMap.clear();
       _isProcessing = true;
     });
@@ -120,12 +119,18 @@ class _CameraAnalysisScreenState extends State<CameraAnalysisScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.colorScheme.onSurface),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: context.colorScheme.onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'تحليل الملابس المتعدد', 
-          style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)
+          'تحليل الملابس المتعدد',
+          style: context.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -134,31 +139,40 @@ class _CameraAnalysisScreenState extends State<CameraAnalysisScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_selectedImage != null && _detectedItems.isEmpty && !_isProcessing)
+            if (_selectedImage != null &&
+                _detectedItems.isEmpty &&
+                !_isProcessing)
               Container(
                 height: 300,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(32),
-                  image: DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover),
+                  image: DecorationImage(
+                    image: FileImage(_selectedImage!),
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            
+
             const SizedBox(height: 16),
-            
+
             if (_isProcessing) _buildProcessingState(),
-            
+
             if (_detectedItems.isNotEmpty && !_isProcessing) ...[
               Text(
                 'تم العثور على ${_detectedItems.length} قطع:',
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: context.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
               // استخدام indexed map للمرور على العناصر
-              ...Iterable<int>.generate(_detectedItems.length).map((index) => _buildItemResult(index, _detectedItems[index])),
+              ...Iterable<int>.generate(
+                _detectedItems.length,
+              ).map((index) => _buildItemResult(index, _detectedItems[index])),
             ],
 
             if (_selectedImage == null && !_isProcessing) _buildEmptyState(),
-            
+
             const SizedBox(height: 24),
             if (!_isProcessing) ...[
               CustomButton(
@@ -207,21 +221,37 @@ class _CameraAnalysisScreenState extends State<CameraAnalysisScreen> {
                 children: [
                   Text(
                     item['category'].toString().toUpperCase(),
-                    style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900, color: context.colorScheme.primary),
+                    style: context.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: context.colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  _buildSmallInfoRow(Icons.palette_outlined, 'اللون: ${item['color']}'),
+                  _buildSmallInfoRow(
+                    Icons.palette_outlined,
+                    'اللون: ${item['color']}',
+                  ),
                   if (item['sleeve'] != null)
-                    _buildSmallInfoRow(Icons.straighten_rounded, 'الكم: ${item['sleeve']}'),
+                    _buildSmallInfoRow(
+                      Icons.straighten_rounded,
+                      'الكم: ${item['sleeve']}',
+                    ),
                 ],
               ),
             ),
-            isSaving 
-              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-              : IconButton(
-                  onPressed: () => _saveToCloset(index, item),
-                  icon: Icon(Icons.add_circle_outline_rounded, color: context.colorScheme.primary),
-                )
+            isSaving
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton(
+                    onPressed: () => _saveToCloset(index, item),
+                    icon: Icon(
+                      Icons.add_circle_outline_rounded,
+                      color: context.colorScheme.primary,
+                    ),
+                  ),
           ],
         ),
       ),
@@ -231,7 +261,11 @@ class _CameraAnalysisScreenState extends State<CameraAnalysisScreen> {
   Widget _buildSmallInfoRow(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: context.colorScheme.onSurface.withValues(alpha: 0.5)),
+        Icon(
+          icon,
+          size: 14,
+          color: context.colorScheme.onSurface.withValues(alpha: 0.5),
+        ),
         const SizedBox(width: 6),
         Text(text, style: context.textTheme.bodySmall),
       ],
@@ -274,12 +308,16 @@ class _CameraAnalysisScreenState extends State<CameraAnalysisScreen> {
               const SizedBox(height: 20),
               Text(
                 'الذكاء الاصطناعي يحلل القماش...',
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                style: context.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 'يتم تحديد اللون وفئة الملابس تلقائياً',
-                style: context.textTheme.bodySmall?.copyWith(color: context.colorScheme.onSurface.withValues(alpha: 0.5)),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
               ),
             ],
           ),

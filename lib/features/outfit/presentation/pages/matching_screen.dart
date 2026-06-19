@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/utils/context_ext.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/models/outfit_model.dart';
@@ -74,7 +75,7 @@ class MatchingScreen extends StatelessWidget {
           Icon(Icons.auto_awesome_rounded, size: 80, color: context.colorScheme.primary.withValues(alpha: 0.2)),
           const SizedBox(height: 20),
           Text(
-            'لا توجد تنسيقات بعد',
+            'noOutfitsYet'.tr(),
             style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 18),
           ),
         ],

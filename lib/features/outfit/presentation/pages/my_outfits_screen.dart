@@ -16,12 +16,12 @@ class MyOutfitsScreen extends ConsumerWidget {
     final outfitService = ref.watch(outfitGeneratorServiceProvider);
 
     if (user == null) {
-      return Scaffold(body: Center(child: Text('Please login first'.tr())));
+      return Scaffold(body: Center(child: Text('pleaseLoginFirst'.tr())));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('تنسيقاتي'.tr(), style: const TextStyle(fontWeight: FontWeight.w900)),
+        title: Text('myOutfits'.tr(), style: const TextStyle(fontWeight: FontWeight.w900)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -41,7 +41,7 @@ class MyOutfitsScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.auto_awesome_rounded, size: 80, color: context.colorScheme.primary.withValues(alpha: 0.2)),
                   const SizedBox(height: 16),
-                  Text('لا يوجد تنسيقات محفوظة بعد'.tr(), style: context.textTheme.labelLarge),
+                  Text('noOutfitsYet'.tr(), style: context.textTheme.labelLarge),
                 ],
               ),
             );
@@ -117,7 +117,7 @@ class MyOutfitsScreen extends ConsumerWidget {
                     // مسح التنسيق منطق مستقبلي
                   },
                   icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                  label: Text('حذف'.tr(), style: const TextStyle(color: Colors.redAccent)),
+                  label: Text('delete'.tr(), style: const TextStyle(color: Colors.redAccent)),
                 ),
               ],
             )

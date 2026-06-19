@@ -1,24 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/utils/context_ext.dart';
-import 'package:go_router/go_router.dart';
+import '../../../../core/providers/settings_provider.dart';
+import '../../../../core/services/data_providers.dart';
 
-// شاشة لوحة تحكم التاجر (Trader Dashboard Screen)
-// تعرض ملخصاً لأداء المتجر، المبيعات، والنشاطات الأخيرة
 class TraderDashboardScreen extends ConsumerWidget {
   const TraderDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final ordersAsync = ref.watch(sellerOrdersProvider);
+    final productsAsync = ref.watch(traderProductsProvider);
+    final currency = ref.watch(settingsProvider).currencySymbol;
+
+    final totalSalesStr = ordersAsync.maybeWhen(
+      data: (orders) {
+        final total = orders.fold<double>(0.0, (acc, order) => acc + (order['price'] as num? ?? 0.0).toDouble());
+        return '${total.toStringAsFixed(2)} $currency';
+      },
+      orElse: () => '... $currency',
+    );
+
+    final activeProductsStr = productsAsync.maybeWhen(
+      data: (products) => products.length.toString(),
+      orElse: () => '...',
+    );
+
+    final activeOrdersStr = ordersAsync.maybeWhen(
+      data: (orders) => orders.where((o) => o['status'] != 'completed').length.toString(),
+      orElse: () => '...',
+    );
+
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/add-product'),
-        backgroundColor: context.colorScheme.primary,
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: Text('إضافة منتج'.tr(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -32,6 +49,7 @@ class TraderDashboardScreen extends ConsumerWidget {
         ),
         child: SafeArea(
           child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
             slivers: [
               SliverPadding(
                 padding: const EdgeInsets.all(24.0),
@@ -41,21 +59,21 @@ class TraderDashboardScreen extends ConsumerWidget {
                     children: [
                       // عنوان لوحة التحكم
                       Text(
-                        'لوحة التحكم'.tr(),
-                        style: context.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900),
+                        'dashboard'.tr(),
+                        style: context.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900, color: context.colorScheme.onSurface),
                       ),
                       Text(
-                        'مرحباً بك مجدداً في متجرك'.tr(), 
+                        'welcomeBackStore'.tr(), 
                         style: context.textTheme.bodyMedium?.copyWith(
-                          color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: context.colorScheme.onSurface.withValues(alpha: 0.8),
                         ),
                       ),
                       const SizedBox(height: 32),
                       // شبكة الإحصائيات الرئيسية
-                      _buildStatsGrid(context),
+                      _buildStatsGrid(context, totalSalesStr, activeProductsStr, activeOrdersStr),
                       const SizedBox(height: 32),
                       // قسم النشاطات الأخيرة
-                      _buildRecentActivity(context),
+                      _buildRecentActivity(context, ordersAsync),
                     ],
                   ),
                 ),
@@ -67,8 +85,8 @@ class TraderDashboardScreen extends ConsumerWidget {
     );
   }
 
-  // بناء شبكة من بطاقات الإحصائيات (المبيعات، المشاهدات، إلخ)
-  Widget _buildStatsGrid(BuildContext context) {
+  // بناء شبكة من بطاقات الإحصائيات
+  Widget _buildStatsGrid(BuildContext context, String totalSales, String activeProducts, String activeOrders) {
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -77,24 +95,26 @@ class TraderDashboardScreen extends ConsumerWidget {
       mainAxisSpacing: 16,
       childAspectRatio: 1.2,
       children: [
-        _buildStatCard(context, 'إجمالي المبيعات'.tr(), '1,234 SR', Icons.payments_rounded, Colors.green),
-        _buildStatCard(context, 'مشاهدات المنتجات'.tr(), '5.2k', Icons.visibility_rounded, Colors.blue),
-        _buildStatCard(context, 'المنتجات النشطة'.tr(), '24', Icons.inventory_2_rounded, Colors.orange),
-        _buildStatCard(context, 'تنبيهات النشاط'.tr(), '12', Icons.notifications_active_rounded, Colors.purple),
+        _buildStatCard(context, 'totalSales'.tr(), totalSales, Icons.payments_rounded, Colors.green, onTap: () => context.push('/order-history')),
+        _buildStatCard(context, 'activeListings'.tr(), activeProducts, Icons.inventory_2_rounded, Colors.orange, onTap: () => context.push('/matching')),
+        _buildStatCard(context, 'activeOrders'.tr(), activeOrders, Icons.shopping_bag_rounded, Colors.blue, onTap: () => context.push('/order-history')),
+        _buildStatCard(context, 'storeNotifs'.tr(), activeOrders, Icons.notifications_active_rounded, Colors.purple, onTap: () => context.showSnackBar('comingSoon'.tr())),
       ],
     );
   }
 
   // بناء بطاقة إحصائية واحدة بتصميم زجاجي
-  Widget _buildStatCard(BuildContext context, String label, String value, IconData icon, Color color) {
-    return GlassCard(
+  Widget _buildStatCard(BuildContext context, String label, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: GlassCard(
       borderRadius: 24,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // أيقونة الإحصائية مع خلفية ملونة شفافة
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -106,38 +126,65 @@ class TraderDashboardScreen extends ConsumerWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+              Text(value, style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900, color: context.colorScheme.onSurface)),
+              const SizedBox(height: 4),
               Text(label, style: context.textTheme.labelSmall?.copyWith(
-                color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+                color: context.colorScheme.onSurface.withValues(alpha: 0.8),
               )),
             ],
           ),
         ],
       ),
+      ),
     );
   }
 
-  // بناء قسم يعرض النشاطات الأخيرة (مثل الطلبات أو الرسائل)
-  Widget _buildRecentActivity(BuildContext context) {
+  // بناء قسم يعرض النشاطات الأخيرة
+  Widget _buildRecentActivity(BuildContext context, AsyncValue<List<Map<String, dynamic>>> ordersAsync) {
+    final isAr = context.locale.languageCode == 'ar';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'النشاطات الأخيرة'.tr(),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          'recentActivity'.tr(),
+          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: context.colorScheme.onSurface),
         ),
         const SizedBox(height: 16),
         GlassCard(
           borderRadius: 24,
           padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              _activityItem(context, 'تم استلام طلب جديد #1234', 'منذ دقيقتين', Icons.shopping_bag_rounded),
-              const Divider(height: 24),
-              _activityItem(context, 'تم تحديث مخزون "فستان صيفي"', 'منذ ساعة', Icons.sync_rounded),
-              const Divider(height: 24),
-              _activityItem(context, 'رسالة جديدة من مستخدم', 'منذ 3 ساعات', Icons.chat_bubble_rounded),
-            ],
+          child: ordersAsync.when(
+            data: (orders) {
+              if (orders.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(
+                    child: Text(
+                      isAr ? 'لا توجد طلبات مستلمة بعد' : 'No orders received yet',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ),
+                );
+              }
+              final recent = orders.take(3).toList();
+              return Column(
+                children: [
+                  for (int i = 0; i < recent.length; i++) ...[
+                    if (i > 0) const Divider(height: 24),
+                    _activityItem(
+                      context,
+                      isAr
+                          ? 'تم استلام طلب جديد لـ "${recent[i]['productName']}"'
+                          : 'New order received for "${recent[i]['productName']}"',
+                      _formatTimestamp(recent[i]['createdAt'] as Timestamp?, isAr),
+                      Icons.shopping_bag_rounded,
+                    ),
+                  ]
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error: $err')),
           ),
         ),
       ],
@@ -154,12 +201,22 @@ class TraderDashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+              Text(title, style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: context.colorScheme.onSurface)),
+              const SizedBox(height: 2),
               Text(time, style: context.textTheme.labelSmall?.copyWith(color: context.colorScheme.onSurface.withValues(alpha: 0.5))),
             ],
           ),
         ),
       ],
     );
+  }
+
+  String _formatTimestamp(Timestamp? timestamp, bool isAr) {
+    if (timestamp == null) return isAr ? 'الآن' : 'just now';
+    final diff = DateTime.now().difference(timestamp.toDate());
+    if (diff.inMinutes < 1) return isAr ? 'الآن' : 'just now';
+    if (diff.inMinutes < 60) return isAr ? 'منذ ${diff.inMinutes} دقيقة' : '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return isAr ? 'منذ ${diff.inHours} ساعة' : '${diff.inHours}h ago';
+    return isAr ? 'منذ ${diff.inDays} يوم' : '${diff.inDays}d ago';
   }
 }

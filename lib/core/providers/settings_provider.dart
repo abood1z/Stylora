@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../services/firestore_service.dart';
+import '../services/service_providers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 
@@ -76,16 +78,7 @@ class SettingsState {
 
   // الحصول على رمز العملة بناءً على الدولة المختارة
   String get currencySymbol {
-    final countryName = country?.toLowerCase() ?? '';
-    if (countryName.contains('jordan')) return 'JD';
-    if (countryName.contains('saudi')) return 'SAR';
-    if (countryName.contains('emirates')) return 'AED';
-    if (countryName.contains('kuwait')) return 'KWD';
-    if (countryName.contains('qatar')) return 'QAR';
-    if (countryName.contains('palestine')) return 'ILS';
-    if (countryName.contains('egypt')) return 'EGP';
-    if (countryName.contains('turkey')) return 'TRY';
-    return '\$'; // الافتراضي هو الدولار
+    return 'currencySymbol'.tr();
   }
 }
 
@@ -111,13 +104,19 @@ class SettingsNotifier extends Notifier<SettingsState> {
       }
     });
 
+    // تحميل الإعدادات عن بعد فوراً إذا كان المستخدم مسجلاً بالفعل عند بدء التشغيل
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      Future.microtask(() => loadRemoteSettings(currentUser.uid));
+    }
+
     return _loadLocalSettings();
   }
 
   // تحميل الإعدادات المخزنة محلياً على الهاتف
   SettingsState _loadLocalSettings() {
-    final theme = _prefs.getString('theme') ?? 'light';
-    final themeMode = theme == 'dark' ? ThemeMode.dark : ThemeMode.light;
+    final theme = _prefs.getString('theme') ?? 'system';
+    final themeMode = theme == 'dark' ? ThemeMode.dark : (theme == 'light' ? ThemeMode.light : ThemeMode.system);
     final language = _prefs.getString('language') ?? 'ar';
     final notificationsEnabled = _prefs.getBool('notifications') ?? true;
     final biometricEnabled = _prefs.getBool('biometric') ?? false;
@@ -158,7 +157,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
 
         // تحديث الثيم
         if (userData.containsKey('theme')) {
-          themeMode = userData['theme'] == 'dark' ? ThemeMode.dark : ThemeMode.light;
+          final t = userData['theme'];
+          themeMode = t == 'dark' ? ThemeMode.dark : (t == 'light' ? ThemeMode.light : ThemeMode.system);
           await _prefs.setString('theme', userData['theme']);
         }
         // تحديث اللغة
@@ -176,10 +176,14 @@ class SettingsNotifier extends Notifier<SettingsState> {
         }
 
         // تحديث إعدادات الأمان والتنبيهات الفرعية
-        if (remoteSettings.containsKey('biometric')) {
-          biometricEnabled = remoteSettings['biometric'] ?? false;
-          await _prefs.setBool('biometric', biometricEnabled);
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null && user.email != null) {
+          final bioService = ref.read(biometricAuthServiceProvider);
+          biometricEnabled = await bioService.isLinkedForUser(user.email!);
+        } else {
+          biometricEnabled = false;
         }
+        await _prefs.setBool('biometric', biometricEnabled);
         if (remoteSettings.containsKey('transactionalNotifs')) {
           transactionalNotifs = remoteSettings['transactionalNotifs'] ?? true;
           await _prefs.setBool('transactionalNotifs', transactionalNotifs);
@@ -219,8 +223,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
   // تغيير المظهر وحفظه
   Future<void> setThemeMode(ThemeMode mode) async {
     state = state.copyWith(themeMode: mode);
-    await _prefs.setString('theme', mode == ThemeMode.dark ? 'dark' : 'light');
-    _updateFirestore({'theme': mode == ThemeMode.dark ? 'dark' : 'light'});
+    final themeStr = mode == ThemeMode.dark ? 'dark' : (mode == ThemeMode.light ? 'light' : 'system');
+    await _prefs.setString('theme', themeStr);
+    _updateFirestore({'theme': themeStr});
   }
 
   // تغيير لغة التطبيق وحفظها
@@ -293,6 +298,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
   Future<void> updateProfile(Map<String, dynamic> data) async {
     // تحديث الحالة محلياً أولاً
     state = state.copyWith(
+      city: data['city'] ?? state.city,
+      province: data['province'] ?? state.province,
+      country: data['country'] ?? state.country,
       userData: {
         ...state.userData ?? {},
         ...data,

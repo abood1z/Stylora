@@ -1,17 +1,125 @@
-# stylora
+# الدليل الشامل لتشغيل مشروع Stylora على كمبيوتر آخر
 
-A new Flutter project.
+هذا الملف يحتوي على الخطوات والمتطلبات الأساسية التي ستحتاجها لتشغيل مشروع **Stylora** المبني بإطار عمل **Flutter** على أي جهاز كمبيوتر جديد.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 1. نقل الكود المصدري (Source Code)
+تحتاج أولاً إلى نقل هذا المجلد الخاص بالمشروع إلى الكمبيوتر الجديد.
+- **الطريقة الأفضل:** ارفع المشروع على مستودع (مثل GitHub) وقم بعمل `git clone` على الجهاز الجديد.
+- **الطريقة اليدوية:** انسخ مجلد المشروع بالكامل على ذاكرة متنقلة (USB Flash) وانقله.
 
-A few resources to get you started if this is your first Flutter project:
+## 2. تثبيت البرامج الأساسية (Prerequisites)
+الكمبيوتر الجديد يحتاج إلى بعض البرامج الأساسية لكي يتعرف على لغة البرمجة ويتمكن من تشغيل التطبيق:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### أ) Flutter SDK
+- قم بتحميل أحدث إصدار من [موقع Flutter الرسمي](https://docs.flutter.dev/get-started/install).
+- قم بفك الضغط وإضافته إلى متغيرات النظام (Environment Variables) ليتمكن الكمبيوتر من قراءة أوامر Flutter.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### ب) Android Studio
+- قم بتحميله من [موقع مطوري أندرويد](https://developer.android.com/studio).
+- هذا البرنامج ضروري جداً لأنه يحتوي على أدوات الأندرويد (Android SDK).
+- من خلاله يمكنك إنشاء هاتف وهمي (Emulator) لتجربة التطبيق عليه.
+
+### ج) بيئة التطوير (VS Code)
+- نفضل استخدام [Visual Studio Code](https://code.visualstudio.com/).
+- بعد تثبيته، اذهب إلى قسم الإضافات (Extensions) وقم بتثبيت إضافتي: **Flutter** و **Dart**.
+
+## 3. ملفات قاعدة البيانات (Firebase)
+يعتمد هذا التطبيق على خدمات Google Firebase في تخزين البيانات. 
+- تأكد أن ملف الربط السري **`google-services.json`** متواجد في هذا المسار: `android/app/google-services.json`.
+- *(ملاحظة: إذا كنت تستخدم GitHub، فعادة ما يتم تجاهل هذا الملف لكي لا يُسرق، لذلك تأكد من نقله يدوياً إذا استخدمت GitHub).*
+
+## 4. تشغيل المشروع لأول مرة
+بعد أن تقوم بنقل المشروع وتثبيت البرامج، اتبع الخطوات التالية:
+
+1. افتح مجلد المشروع في **VS Code**.
+2. افتح موجه الأوامر (Terminal) من داخل المحرر.
+3. اكتب الأمر التالي لتحميل جميع المكتبات والأدوات التي يعتمد عليها المشروع:
+   ```bash
+   flutter pub get
+   ```
+4. للتأكد من أن جهازك جاهز تماماً ولا ينقصه شيء، اكتب هذا الأمر السحري:
+   ```bash
+   flutter doctor
+   ```
+   *سيقوم هذا الأمر بفحص جهازك، وإذا ظهرت لك علامات (✔️) خضراء بجانب Flutter و Android Toolchain فهذا يعني أنك جاهز!*
+5. أخيراً، قم بتشغيل المحاكي (Emulator) أو أوصل هاتفك، واضغط على زر التشغيل (Run) أو اكتب:
+   ```bash
+   flutter run
+   ```
+
+## 5. تنظيف كاش المشروع وتقليل حجمه (Clean Project)
+إذا كان حجم مجلد المشروع كبيراً على القرص الصلب وتريد تقليصه قبل نقله أو لتوفير مساحة على جهازك، يمكنك تشغيل الأمر التالي في موجه الأوامر (Terminal):
+```bash
+flutter clean
+```
+
+### ماذا سيحدث بعد تشغيل هذا الأمر؟
+- سيقوم بحذف مجلدي `build` و `.dart_tool` بالكامل، وستستعيد حوالي 3.8 جيجابايت من مساحة الهارد ديسك فوراً.
+- عند قيامك بتشغيل التطبيق مرة أخرى (`flutter run` أو `flutter build`)، سيقوم Flutter بإعادة بناء هذه الملفات تلقائياً من الصفر وبحجم صغير جداً في البداية.
+
+---
+**ملاحظات إضافية:**
+- إذا كان الكمبيوتر الجديد من نوع Mac وتريد تشغيل التطبيق على أجهزة الآيفون (iOS)، ستحتاج أيضاً إلى تثبيت برنامج **Xcode** من متجر آبل، بالإضافة إلى تشغيل الأمر `pod install` داخل مجلد `ios/`.
+
+---
+
+## 6. إعداد وتشغيل سيرفر قياس الملابس الافتراضي الذكي (AI Try-On Server)
+يعتمد التطبيق على خادم خارجي مبني بـ Python وإطار عمل FastAPI لتشغيل نموذج الذكاء الاصطناعي IDM-VTON لتجربة الملابس افتراضياً. نظرًا لأن تشغيل هذا النموذج محليًا يتطلب كرت شاشة قويًا جدًا (GPU من نوع Nvidia بذاكرة لا تقل عن 12 جيجابايت VRAM)، فإن الخيار الأفضل والأسهل هو تشغيله مجانًا على **Google Colab**.
+
+### أ) التشغيل باستخدام Google Colab (موصى به لسرعة الأداء والمجانية)
+1. افتح موقع [Google Colab](https://colab.research.google.com/).
+2. قم بإنشاء دفتر ملاحظات جديد (New Notebook).
+3. غير نوع بيئة التشغيل لتكون **GPU T4** (عبر الذهاب إلى Runtime -> Change runtime type -> T4 GPU).
+4. انسخ وشغّل الأكواد التالية لتثبيت المكونات وتشغيل السيرفر:
+
+```python
+# 1. تثبيت المستودع والمكتبات الأساسية
+!git clone https://github.com/yisol/IDM-VTON.git
+%cd IDM-VTON
+# استبدال ملف tryon_api.py بالملف الموجود في مجلد المشروع (IDM-VTON/tryon_api.py)
+# يمكنك رفعه مباشرة أو نسخه
+
+!pip install -r requirements.txt
+!pip install fastapi uvicorn websockets diffusers transformers accelerate pyngrok torch torchvision
+
+# 2. إعداد Ngrok لتوليد رابط عام (Tunnel) لربط التطبيق بالسيرفر
+# تأكد من التسجيل في موقع ngrok للحصول على Authtoken مجاني
+from pyngrok import ngrok
+NGROK_TOKEN = "ضع_هنا_التوكن_الخاص_بك"
+ngrok.set_auth_token(NGROK_TOKEN)
+public_url = ngrok.connect(8001, bind_tls=True)
+print("🔗 رابط السيرفر العام لتضعه في التطبيق هو:")
+print(public_url.public_url)
+
+# 3. تشغيل السيرفر
+!python tryon_api.py
+```
+
+### ب) التشغيل المحلي (في حال توفر كمبيوتر قوي بكرت شاشة Nvidia)
+1. قم بتثبيت **Python 3.10** أو أحدث.
+2. تأكد من تثبيت مكتبة **PyTorch** المتوافقة مع كرت الشاشة CUDA عبر [موقع PyTorch الرسمي](https://pytorch.org/).
+3. افتح موجه الأوامر داخل مجلد `IDM-VTON` واكتب الأوامر التالية لتثبيت المكتبات:
+   ```bash
+   pip install fastapi uvicorn websockets diffusers transformers accelerate pyngrok torch torchvision
+   ```
+4. قم بتشغيل السيرفر محلياً:
+   ```bash
+   python tryon_api.py
+   ```
+   *سيعمل السيرفر على المنفذ 8001 بشكل افتراضي (`http://localhost:8001`).*
+
+---
+
+## 7. ربط التطبيق مع السيرفر الجديد
+بعد تشغيل السيرفر والحصول على رابط Ngrok (مثل: `https://xxxx-xx-xx.ngrok-free.dev`):
+1. افتح تطبيق **Stylora** على الهاتف أو المحاكي.
+2. قم بتسجيل الدخول بأي حساب، وتوجه إلى شاشة **تجربة الملابس الافتراضية (Virtual Try-on)**.
+3. اضغط على أيقونة الإعدادات (أعلى اليمين).
+4. قم بتفعيل خيار **استخدام السيرفر المحلي (Use Local Server)**.
+5. الصق رابط Ngrok في خانة العنوان (مع التأكد من إضافة `/tryon` في نهاية الرابط، مثلاً: `https://xxxx-xx-xx.ngrok-free.dev/tryon`).
+6. اضغط على **حفظ الإعدادات**.
+7. التطبيق الآن متصل تماماً وسيعرض خطوات التوليد التدريجي للذكاء الاصطناعي لحظة بلحظة وبشكل مباشر!
+
+

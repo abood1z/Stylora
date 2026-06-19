@@ -42,11 +42,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // 1. فحص وجود تحديثات (إلزامية أو اختيارية) من Firestore
       final isForceUpdate = await AppUpdateService().checkForUpdate(context);
       
-      // 2. إذا لم يكن هناك تحديث إجباري يمنع الاستخدام، ننتقل لشاشة تسجيل الدخول
+      // 2. إذا لم يكن هناك تحديث إجباري يمنع الاستخدام، ننتقل للشاشة الرئيسية (أو يوجهنا الموجه التلقائي لتسجيل الدخول)
       if (!isForceUpdate && mounted) {
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) {
-            context.go('/login');
+            context.go('/home');
           }
         });
       }

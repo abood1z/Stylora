@@ -39,9 +39,31 @@ class FirestoreService {
   Stream<List<ProductModel>> watchTraderProducts(String storeID) {
     return _productsCollection
         .where('storeID', isEqualTo: storeID)
-        .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => ProductModel.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          final docs = snapshot.docs;
+          // Sort docs in memory by the 'timestamp' field inside doc data to avoid requiring a composite index
+          final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+          sortedDocs.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>?;
+            final bData = b.data() as Map<String, dynamic>?;
+            final aTime = aData?['timestamp'] as Timestamp?;
+            final bTime = bData?['timestamp'] as Timestamp?;
+            if (aTime == null || bTime == null) return 0;
+            return bTime.compareTo(aTime);
+          });
+          return sortedDocs.map((doc) => ProductModel.fromFirestore(doc)).toList();
+        });
+  }
+
+  // حذف منتج خاص بالتاجر
+  Future<void> deleteTraderProduct(String productId) async {
+    await _productsCollection.doc(productId).delete();
+  }
+
+  // تحديث بيانات منتج
+  Future<void> updateTraderProduct(String productId, Map<String, dynamic> data) async {
+    await _productsCollection.doc(productId).update(data);
   }
 
   // --- قسم الخزانة الرقمية للمستخدم (User Digital Closet) ---
@@ -145,19 +167,21 @@ class FirestoreService {
         .doc(uid)
         .collection('wardrobe')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+        .map((snapshot) => snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList());
   }
 
-  // مراقبة المتاجر الشريكة (المحلات المسجلة في التطبيق)
+  // مراقبة المتاجر الحقيقية (المستخدمين بصلاحية تاجر)
   Stream<List<Map<String, dynamic>>> watchShopStores() {
-    return _storesCollection.snapshots().map(
-        (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>}).toList());
+    return _usersCollection
+        .where('role', whereIn: ['merchant', 'trader'])
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {...doc.data() as Map<String, dynamic>, 'id': doc.id}).toList());
   }
 
   // مراقبة الإطلالات اليومية المنسقة بواسطة الذكاء الاصطناعي
   Stream<List<Map<String, dynamic>>> watchDailyLooks() {
     return _looksCollection.snapshots().map(
-        (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>}).toList());
+        (snapshot) => snapshot.docs.map((doc) => {...doc.data() as Map<String, dynamic>, 'id': doc.id}).toList());
   }
 
   // استرجاع كافة التنسيقات التي تعتمد على قطعة معينة (لأغراض الحذف المتتالي)
@@ -172,32 +196,7 @@ class FirestoreService {
   // وظيفة بحث شاملة تبحث في المتجر وخزانة المستخدم في آن واحد مع دعم الترجمة للعربية
   Future<Map<String, List<dynamic>>> searchStoreAndCloset(String uid, String searchKey) async {
     final lowerKey = searchKey.toLowerCase().trim();
-    if (lowerKey.isEmpty) return {'store': [], 'closet': []};
-
-    // خريطة لربط الكلمات العربية بتصنيفات النماذج (لجعل البحث يفهم لغة المستخدم)
-    final Map<String, List<String>> arabicMapping = {
-      'تيشرت': ['t_shirt', 'polo'],
-      'قميص': ['shirt', 'shirt2', 'polo'],
-      'بنطلون': ['jeans', 'trousers', 'shorts'],
-      'جينز': ['jeans'],
-      'جاكيت': ['jacket', 'denim_jacket', 'track_jacket', 'blazer'],
-      'حذاء': ['shoes'],
-      'فستان': ['dress'],
-      'هودي': ['hoodie'],
-      'سويتر': ['sweater'],
-      'تنورة': ['rok'],
-      'شورت': ['shorts'],
-    };
-
-    List<String> searchTerms = [lowerKey];
-    for (var entry in arabicMapping.entries) {
-      if (lowerKey.contains(entry.key) || entry.key.contains(lowerKey)) {
-        searchTerms.addAll(entry.value); // إضافة المكافئات الإنجليزية لمحرك البحث
-      }
-    }
-    
-    // إزالة المصطلحات المكررة
-    searchTerms = searchTerms.toSet().toList();
+    final isAll = lowerKey.isEmpty || lowerKey == 'all' || lowerKey == 'الكل';
 
     // 1. استعلام البحث في المتجر العام (مع مراعاة الدولة)
     Query storeQuery = _productsCollection;
@@ -210,8 +209,58 @@ class FirestoreService {
     }
 
     final storeSnapshot = await storeQuery.get();
-    final storeResults = storeSnapshot.docs
+    var storeResults = storeSnapshot.docs
         .map((doc) => ProductModel.fromFirestore(doc))
+        .toList();
+
+    // 2. استعلام البحث في خزانة المستخدم الخاصة
+    final closetSnapshot = await _closetCollection.where('userID', isEqualTo: uid).get();
+    var closetResults = closetSnapshot.docs
+        .map((doc) => ClosetItemModel.fromFirestore(doc))
+        .toList();
+
+    if (isAll) {
+      return {
+        'store': storeResults,
+        'closet': closetResults,
+      };
+    }
+
+    // خريطة لربط الكلمات وتوسيع نطاق البحث لتشمل الأنماط والمواسم
+    final Map<String, List<String>> keywordExpansion = {
+      'تيشرت': ['t_shirt', 'polo'],
+      'قميص': ['shirt', 'shirt2', 'polo'],
+      'بنطلون': ['jeans', 'trousers', 'shorts'],
+      'جينز': ['jeans'],
+      'جاكيت': ['jacket', 'denim_jacket', 'track_jacket', 'blazer'],
+      'حذاء': ['shoes'],
+      'فستان': ['dress'],
+      'هودي': ['hoodie'],
+      'سويتر': ['sweater'],
+      'تنورة': ['rok'],
+      'شورت': ['shorts'],
+      'casual': ['t_shirt', 'jeans', 'shorts', 'polo'],
+      'كاجوال': ['t_shirt', 'jeans', 'shorts', 'polo'],
+      'formal': ['blazer', 'trousers', 'shirt', 'coat'],
+      'رسمي': ['blazer', 'trousers', 'shirt', 'coat'],
+      'sporty': ['track_jacket', 'hoodie', 'shorts', 'sneakers'],
+      'رياضي': ['track_jacket', 'hoodie', 'shorts', 'sneakers'],
+      'evening': ['dress', 'blazer'],
+      'سهرة': ['dress', 'blazer'],
+      'autumn': ['coat', 'hoodie', 'sweater', 'jacket', 'winter'],
+      'خريفي': ['coat', 'hoodie', 'sweater', 'jacket', 'winter'],
+    };
+
+    List<String> searchTerms = [lowerKey];
+    for (var entry in keywordExpansion.entries) {
+      if (lowerKey.contains(entry.key) || entry.key.contains(lowerKey)) {
+        searchTerms.addAll(entry.value);
+      }
+    }
+    
+    searchTerms = searchTerms.toSet().toList();
+
+    storeResults = storeResults
         .where((p) => 
             searchTerms.any((term) => 
               p.category.toLowerCase().contains(term) || 
@@ -220,10 +269,7 @@ class FirestoreService {
             ))
         .toList();
 
-    // 2. استعلام البحث في خزانة المستخدم الخاصة
-    final closetSnapshot = await _closetCollection.where('userID', isEqualTo: uid).get();
-    final closetResults = closetSnapshot.docs
-        .map((doc) => ClosetItemModel.fromFirestore(doc))
+    closetResults = closetResults
         .where((c) => 
             searchTerms.any((term) => 
               c.category.toLowerCase().contains(term) || 
@@ -236,4 +282,134 @@ class FirestoreService {
       'closet': closetResults,
     };
   }
+
+  // --- قسم إدارة الطلبات الحقيقية (Real Orders Management) ---
+
+  // إنشاء طلب جديد في Firestore
+  Future<void> createOrder(Map<String, dynamic> orderData) async {
+    await _db.collection('orders').add(orderData);
+  }
+
+  // مراقبة الطلبات التي قام بها المشتري مرتبة تنازلياً حسب الوقت
+  Stream<List<Map<String, dynamic>>> watchBuyerOrders(String buyerId) {
+    return _db
+        .collection('orders')
+        .where('buyerId', isEqualTo: buyerId)
+        .snapshots()
+        .map((snapshot) {
+      final docs = snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+      docs.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
+      return docs;
+    });
+  }
+
+  // مراقبة الطلبات المستلمة بواسطة المتجر (التاجر) مرتبة تنازلياً حسب الوقت
+  Stream<List<Map<String, dynamic>>> watchSellerOrders(String storeID) {
+    return _db
+        .collection('orders')
+        .where('storeID', isEqualTo: storeID)
+        .snapshots()
+        .map((snapshot) {
+      final docs = snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+      docs.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
+      return docs;
+    });
+  }
+
+  // تحديث حالة الطلب (مثلاً للاكتمال بواسطة التاجر)
+  Future<void> updateOrderStatus(String orderId, String newStatus) async {
+    await _db.collection('orders').doc(orderId).update({'status': newStatus});
+  }
+
+  // --- قسم لوحة تحكم الإدارة (Admin Dashboard Control) ---
+
+  // 1. مراقبة جميع المستخدمين
+  Stream<List<Map<String, dynamic>>> watchAllUsers() {
+    return _usersCollection.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => {...doc.data() as Map<String, dynamic>, 'id': doc.id}).toList();
+    });
+  }
+
+  // تغيير دور المستخدم
+  Future<void> updateUserRole(String uid, String newRole) async {
+    await _usersCollection.doc(uid).update({'role': newRole});
+  }
+
+  // حذف بيانات المستخدم
+  Future<void> deleteUserData(String uid) async {
+    await _usersCollection.doc(uid).delete();
+  }
+
+  // 2. مراقبة جميع المنتجات في المنصة
+  Stream<List<ProductModel>> watchAllProducts() {
+    return _productsCollection.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => ProductModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  // حذف أي منتج من المنصة
+  Future<void> deleteGlobalProduct(String productId) async {
+    await _productsCollection.doc(productId).delete();
+  }
+
+  // 3. مراقبة جميع الطلبات في المنصة
+  Stream<List<Map<String, dynamic>>> watchAllOrders() {
+    return _db.collection('orders').orderBy('createdAt', descending: true).snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+    });
+  }
+
+  // حذف أي طلب
+  Future<void> deleteOrder(String orderId) async {
+    await _db.collection('orders').doc(orderId).delete();
+  }
+
+  // --- الميزات الجديدة للوحة التحكم (Vendors, Content, Analytics) ---
+
+  // حظر أو فك حظر متجر (مستخدم حقيقي)
+  Future<void> updateStoreStatus(String storeId, bool isBlocked) async {
+    await _usersCollection.doc(storeId).set({'isBlocked': isBlocked}, SetOptions(merge: true));
+  }
+
+  // إضافة قصة أناقة جديدة
+  Future<void> addDailyLook(Map<String, dynamic> data) async {
+    data['createdAt'] = FieldValue.serverTimestamp();
+    await _looksCollection.add(data);
+  }
+
+  // حذف قصة أناقة
+  Future<void> deleteDailyLook(String id) async {
+    await _looksCollection.doc(id).delete();
+  }
+
+  // تسجيل استخدام تجربة الملابس الافتراضية
+  Future<void> logVirtualTryOn(String uid) async {
+    await _db.collection('virtual_tryon_logs').add({
+      'userId': uid,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // جلب عدد مرات استخدام تجربة الملابس
+  Future<int> getVirtualTryOnCount() async {
+    final snapshot = await _db.collection('virtual_tryon_logs').count().get();
+    return snapshot.count ?? 0;
+  }
+
+  // جلب جميع قطع الخزانة للإحصائيات
+  Future<List<ClosetItemModel>> getAllClosetItems() async {
+    final snapshot = await _closetCollection.get();
+    return snapshot.docs.map((doc) => ClosetItemModel.fromFirestore(doc)).toList();
+  }
 }
+

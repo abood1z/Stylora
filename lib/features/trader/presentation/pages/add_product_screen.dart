@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_textfield.dart';
@@ -19,32 +19,77 @@ class AddProductScreen extends ConsumerStatefulWidget {
 }
 
 class _AddProductScreenState extends ConsumerState<AddProductScreen> {
-  final _titleController = TextEditingController(); // المتحكم في اسم المنتج
   final _priceController = TextEditingController(); // المتحكم في سعر المنتج
   final _descriptionController = TextEditingController(); // المتحكم في وصف المنتج
   
   String _selectedSeason = 'summer'; // الموسم الافتراضي (صيفي)
   File? _selectedImage; // ملف الصورة المختارة من المعرض
 
+  @override
+  void initState() {
+    super.initState();
+    _priceController.addListener(() {
+      if (_priceController.text.startsWith('.')) {
+        _priceController.text = '0${_priceController.text}';
+        _priceController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _priceController.text.length),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _requestPermission() async {
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    if (ps.isAuth) return true;
+    if (mounted) {
+      context.showSnackBar('photoPermissionRequired'.tr(), isError: true);
+    }
+    return false;
+  }
+
   // اختيار صورة من معرض الصور بالجهاز
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
+    final hasPermission = await _requestPermission();
+    if (!hasPermission) return;
+    if (!mounted) return;
+
+    final List<AssetEntity>? result = await AssetPicker.pickAssets(
+      context,
+      pickerConfig: AssetPickerConfig(
+        maxAssets: 1,
+        requestType: RequestType.image,
+        gridCount: 4,
+        pageSize: 80,
+        textDelegate: const ArabicAssetPickerTextDelegate(),
+        pickerTheme: AssetPicker.themeData(context.colorScheme.primary),
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      final file = await result.first.file;
+      if (file != null && mounted) {
+        setState(() {
+          _selectedImage = file;
+        });
+      }
     }
   }
 
   // حفظ المنتج وإرسال البيانات للـ ViewModel
   Future<void> _saveProduct(AddProductViewModel viewModel) async {
     if (_selectedImage == null) {
-      context.showSnackBar('يرجى اختيار صورة للمنتج'.tr());
+      context.showSnackBar('pleaseSelectProductImage'.tr());
       return;
     }
     if (_priceController.text.isEmpty) {
-      context.showSnackBar('يرجى إدخال سعر المنتج'.tr());
+      context.showSnackBar('pleaseEnterProductPrice'.tr());
       return;
     }
 
@@ -59,10 +104,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     );
 
     if (success && mounted) {
-      context.showSnackBar('تم إضافة المنتج بنجاح مع التصنيف الآلي!'.tr());
+      context.showSnackBar('productAddedSuccess'.tr());
       Navigator.pop(context); // العودة للشاشة السابقة بعد النجاح
     } else if (!success && mounted) {
-      context.showSnackBar('خطأ: ${viewModel.errorMessage}'.tr(), isError: true);
+      context.showSnackBar("${'error'.tr()}: ${viewModel.errorMessage?.tr() ?? ''}", isError: true);
     }
   }
 
@@ -74,7 +119,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('إضافة منتج جديد'.tr(), style: const TextStyle(fontWeight: FontWeight.w900)),
+        title: Text('addNewProduct'.tr(), style: const TextStyle(fontWeight: FontWeight.w900)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -102,13 +147,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   child: Column(
                     children: [
                       CustomTextField(
-                        label: 'productTitle'.tr(),
-                        hint: 'أدخل اسم المنتج'.tr(),
-                        controller: _titleController,
-                      ),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        label: 'productPrice'.tr(),
+                        label: 'price'.tr(),
                         hint: '0.00',
                         controller: _priceController,
                         keyboardType: TextInputType.number,
@@ -116,7 +155,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       const SizedBox(height: 16),
                       CustomTextField(
                         label: 'productDescription'.tr(),
-                        hint: 'اصف منتجك هنا...'.tr(),
+                        hint: 'describeProductHere'.tr(),
                         controller: _descriptionController,
                         maxLines: 4,
                       ),
@@ -127,7 +166,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         ? const CircularProgressIndicator()
                         : CustomButton(
                             onPressed: () => _saveProduct(viewModel),
-                            text: 'حفظ المنتج'.tr(),
+                            text: 'saveProduct'.tr(),
                             icon: Icons.check_rounded,
                           ),
                     ],
@@ -147,7 +186,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'التصنيف الموسمي'.tr(),
+          'seasonalCategory'.tr(),
           style: context.textTheme.labelMedium?.copyWith(
             fontWeight: FontWeight.bold,
             color: context.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -221,7 +260,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 children: [
                   Icon(Icons.add_a_photo_rounded, size: 48, color: context.colorScheme.primary),
                   const SizedBox(height: 8),
-                  Text('رفع صورة المنتج'.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('uploadProductImage'.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
       ),

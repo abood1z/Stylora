@@ -89,7 +89,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
 
   // حفظ التغييرات وتحديث الملف الشخصي في Firestore
   Future<void> _saveProfile() async {
-    if (_nameController.text.isEmpty) {
+    if (_selectedRole == 'user' && _nameController.text.isEmpty) {
       context.showSnackBar('pleaseFillAllFields'.tr(), isError: true);
       return;
     }
@@ -116,7 +116,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
       final user = ref.read(firebaseAuthProvider).currentUser;
       if (user != null) {
         final Map<String, dynamic> userData = {
-          'name': _nameController.text,
+          'name': _selectedRole == 'merchant' ? _storeNameController.text : _nameController.text,
           'role': _selectedRole,
           'isProfileComplete': true,
         };
@@ -140,8 +140,10 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
 
         // إضافة الموقع الجغرافي
         if (_country != null) userData['country'] = _country;
-        if (_state != null) userData['province'] = _state;
-        if (_city != null) userData['city'] = _city;
+        if (_state != null) {
+          userData['province'] = _state;
+          userData['city'] = _state; // Use state (Governorate/City) as the city
+        }
         userData['locationCompleted'] = _country != null && _state != null;
 
         // تحديث البيانات في Firestore
@@ -167,6 +169,14 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: context.canPop() ? AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => context.pop(),
+        ),
+      ) : null,
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
@@ -207,14 +217,14 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                         _buildRoleToggle(),
                         const SizedBox(height: 24),
                       ],
-                      CustomTextField(
-                        label: 'enterName'.tr(),
-                        hint: 'John Doe',
-                        controller: _nameController,
-                      ),
-                      const SizedBox(height: 16),
-                      // حقول العميل الخاص بالقياسات
                       if (_selectedRole == 'user') ...[
+                        CustomTextField(
+                          label: 'enterName'.tr(),
+                          hint: 'John Doe',
+                          controller: _nameController,
+                        ),
+                        const SizedBox(height: 16),
+                        // حقول العميل الخاص بالقياسات
                         Row(
                           children: [
                             Expanded(
@@ -274,9 +284,16 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                       // حقل اختيار الموقع الجغرافي (الدولة، الولاية، المدينة)
                       CSCPickerPlus(
                         layout: Layout.vertical,
+                        showCities: false,
+                        stateDropdownLabel: context.locale.languageCode == 'ar' ? 'المدينة' : 'City',
+                        countryDropdownLabel: context.locale.languageCode == 'ar' ? 'الدولة' : 'Country',
+                        countryStateLanguage: context.locale.languageCode == 'ar' ? CountryStateLanguage.arabic : CountryStateLanguage.englishOrNative,
                         onCountryChanged: (value) => setState(() => _country = value),
                         onStateChanged: (value) => setState(() => _state = value),
-                        onCityChanged: (value) => setState(() => _city = value),
+                        onCityChanged: (value) {}, // Ignored since showCities is false
+                        currentCountry: _country,
+                        currentState: _state,
+                        currentCity: _city,
                         dropdownDecoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
                             color: context.colorScheme.surface,
@@ -285,8 +302,8 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                             borderRadius: BorderRadius.circular(16),
                             color: Colors.grey.withValues(alpha: 0.1),
                             border: Border.all(color: Colors.grey.withValues(alpha: 0.1))),
-                        selectedItemStyle: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
-                        dropdownHeadingStyle: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        selectedItemStyle: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: context.colorScheme.onSurface),
+                        dropdownHeadingStyle: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: context.colorScheme.onSurface),
                         searchBarRadius: 10.0,
                       ),
                       const SizedBox(height: 32),
@@ -373,6 +390,8 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedGender,
+              dropdownColor: context.colorScheme.surface,
+              style: context.textTheme.bodyLarge?.copyWith(color: context.colorScheme.onSurface),
               hint: Text('gender'.tr(), style: TextStyle(color: context.colorScheme.onSurface.withValues(alpha: 0.3), fontSize: 14)),
               isExpanded: true,
               items: [

@@ -5,6 +5,8 @@ import '../../../../core/models/closet_item_model.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/utils/context_ext.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:gal/gal.dart';
+import 'package:http/http.dart' as http;
 
 class VirtualClosetScreen extends ConsumerStatefulWidget {
   const VirtualClosetScreen({super.key});
@@ -98,6 +100,36 @@ class _VirtualClosetScreenState extends ConsumerState<VirtualClosetScreen> {
     );
   }
 
+  // تنزيل صورة قطعة الملابس وحفظها في الهاتف
+  Future<void> _downloadClosetImage(String url) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("جاري حفظ الصورة في الهاتف..."),
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        await Gal.putImageBytes(response.bodyBytes);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("تم حفظ الصورة بنجاح في الهاتف!")),
+          );
+        }
+      } else {
+        throw Exception("Failed to download image. Status: ${response.statusCode}");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("فشل الحفظ: $e")),
+        );
+      }
+    }
+  }
+
   Widget _buildItemCard(ClosetItemModel item) {
     return GlassCard(
       borderRadius: 16,
@@ -106,17 +138,39 @@ class _VirtualClosetScreenState extends ConsumerState<VirtualClosetScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: CachedNetworkImage(
-                imageUrl: item.imageUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                placeholder: (context, url) =>
-                    Container(color: Colors.grey[200]),
-              ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    child: CachedNetworkImage(
+                      imageUrl: item.imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (context, url) =>
+                          Container(color: Colors.grey[200]),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
+                      onPressed: () => _downloadClosetImage(item.imageUrl),
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Padding(

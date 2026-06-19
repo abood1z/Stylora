@@ -33,7 +33,7 @@ class _LocationSetupScreenState extends ConsumerState<LocationSetupScreen> {
       await ref.read(settingsProvider.notifier).updateProfile({
         'country': _country,
         'province': _state,
-        'city': _city,
+        'city': _state, // Use state (Governorate/City) as the city
         'locationCompleted': true,
       });
 
@@ -91,15 +91,17 @@ class _LocationSetupScreenState extends ConsumerState<LocationSetupScreen> {
                       children: [
                         CSCPickerPlus(
                           layout: Layout.vertical,
+                          showCities: false,
+                          stateDropdownLabel: context.locale.languageCode == 'ar' ? 'المدينة' : 'City',
+                          countryDropdownLabel: context.locale.languageCode == 'ar' ? 'الدولة' : 'Country',
+                          countryStateLanguage: context.locale.languageCode == 'ar' ? CountryStateLanguage.arabic : CountryStateLanguage.englishOrNative,
                           onCountryChanged: (value) {
                             setState(() => _country = value);
                           },
                           onStateChanged: (value) {
                             setState(() => _state = value);
                           },
-                          onCityChanged: (value) {
-                            setState(() => _city = value);
-                          },
+                          onCityChanged: (value) {}, // Ignored since showCities is false
                           // التنسيقات الجمالية لتناسب Style التطبيق
                           dropdownDecoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),

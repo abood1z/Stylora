@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // تعريف الأدوار المتاحة للمستخدمين (مستخدم عادي أو تاجر)
-enum UserRole { user, trader }
+enum UserRole { user, trader, admin }
 
 // كلاس إدارة الحالة الخاص بالمصادقة (Auth)
 class AuthProvider extends ChangeNotifier {
@@ -50,7 +50,7 @@ class AuthProvider extends ChangeNotifier {
     if (doc.exists) {
       final data = doc.data()!;
       // تحويل البيانات من Firestore إلى متغيرات في الكود
-      _role = data['role'] == 'trader' ? UserRole.trader : UserRole.user;
+      _role = data['role'] == 'trader' ? UserRole.trader : (data['role'] == 'admin' ? UserRole.admin : UserRole.user);
       _gender = data['gender'];
       _height = data['height']?.toDouble();
       _weight = data['weight']?.toDouble();
@@ -80,7 +80,7 @@ class AuthProvider extends ChangeNotifier {
       // إنشاء مستند جديد للمستخدم في Firestore
       await _firestore.collection('users').doc(cred.user!.uid).set({
         'email': email,
-        'role': role == UserRole.trader ? 'trader' : 'user',
+        'role': role == UserRole.trader ? 'trader' : (role == UserRole.admin ? 'admin' : 'user'),
         'createdAt': FieldValue.serverTimestamp(),
       });
       _role = role;

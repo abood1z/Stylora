@@ -20,6 +20,14 @@ final userClosetProvider = StreamProvider.autoDispose<List<ClosetItemModel>>((re
   return ref.watch(firestoreServiceProvider).watchUserCloset(user.uid, category: category, color: color);
 });
 
+final userFullClosetProvider = StreamProvider.autoDispose<List<ClosetItemModel>>((ref) {
+  final user = ref.watch(authServiceProvider).currentUser;
+  if (user == null) return Stream.value([]);
+  return ref.watch(firestoreServiceProvider).watchUserCloset(user.uid);
+});
+
+final weatherRecommendationSeedProvider = StateProvider.autoDispose<int>((ref) => 0);
+
 final shopSearchQueryProvider = StateProvider<String>((ref) => '');
 
 final wardrobeProvider = StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
@@ -54,4 +62,22 @@ final filteredShopStoresProvider = Provider.autoDispose<AsyncValue<List<Map<Stri
 
 final dailyLooksProvider = StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
   return ref.watch(firestoreServiceProvider).watchDailyLooks();
+});
+
+final buyerOrdersProvider = StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
+  final user = ref.watch(authServiceProvider).currentUser;
+  if (user == null) return Stream.value([]);
+  return ref.watch(firestoreServiceProvider).watchBuyerOrders(user.uid);
+});
+
+final sellerOrdersProvider = StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
+  final user = ref.watch(authServiceProvider).currentUser;
+  if (user == null) return Stream.value([]);
+  return ref.watch(firestoreServiceProvider).watchSellerOrders(user.uid);
+});
+
+final traderProductsProvider = StreamProvider.autoDispose<List<ProductModel>>((ref) {
+  final user = ref.watch(authServiceProvider).currentUser;
+  if (user == null) return Stream.value([]);
+  return ref.watch(firestoreServiceProvider).watchTraderProducts(user.uid);
 });

@@ -10,6 +10,9 @@ import '../../../../core/models/outfit_model.dart';
 import '../../../../core/services/service_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gal/gal.dart';
+import 'package:http/http.dart' as http;
+import '../../../../core/widgets/full_screen_image_viewer.dart';
 
 // واجهة خزانة الملابس (Closet Management Screen)
 class ClosetScreen extends ConsumerStatefulWidget {
@@ -31,7 +34,7 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
 
     // التأكد من تسجيل دخول المستخدم قبل عرض المحتوى
     if (user == null) {
-      return Scaffold(body: Center(child: Text('Please login first'.tr())));
+      return Scaffold(body: Center(child: Text('pleaseLoginFirst'.tr())));
     }
 
     return Scaffold(
@@ -44,7 +47,7 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
           IconButton(
             onPressed: () => context.push('/virtual-try-on'),
             icon: Icon(Icons.accessibility_new_rounded, color: context.colorScheme.primary),
-            tooltip: 'Virtual Try-On',
+            tooltip: 'virtualTryOn'.tr(),
           ),
           const SizedBox(width: 8),
         ],
@@ -64,6 +67,23 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
         child: Column(
           children: [
             if (_activeTab == 0) ...[
+              // عرض زر المسح في الأعلى بحيث لا يعيق المحتوى
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: GlassCard(
+                  borderRadius: 16,
+                  padding: EdgeInsets.zero,
+                  child: ListTile(
+                    onTap: () => GoRouter.of(context).push('/ai_suggestions'),
+                    leading: Icon(Icons.auto_awesome_rounded, color: context.colorScheme.primary),
+                    title: Text(
+                      'scanClothes'.tr(),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: context.colorScheme.primary),
+                    ),
+                    trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: context.colorScheme.primary),
+                  ),
+                ),
+              ),
               // عرض محتوى الملابس
               _buildFiltersBar(context, viewModel),
               const SizedBox(height: 8),
@@ -76,20 +96,6 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
           ],
         ),
       ),
-      // زر المسح الذكي للملابس بالكاميرا
-      floatingActionButton: _activeTab == 0 ? FloatingActionButton.extended(
-        heroTag: 'closet_scan_fab',
-        onPressed: () {
-          GoRouter.of(context).push('/ai_suggestions');
-        },
-        icon: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
-        label: Text(
-          'scanClothes'.tr(),
-          style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.white),
-        ),
-        backgroundColor: context.colorScheme.primary,
-        elevation: 8,
-      ) : null,
     );
   }
 
@@ -104,8 +110,8 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
       ),
       child: Row(
         children: [
-          _toggleButton(context, index: 0, label: 'ملابسي'.tr(), icon: Icons.checkroom_rounded),
-          _toggleButton(context, index: 1, label: 'تنسيقاتي'.tr(), icon: Icons.auto_awesome_rounded),
+          _toggleButton(context, index: 0, label: 'myClothes'.tr(), icon: Icons.checkroom_rounded),
+          _toggleButton(context, index: 1, label: 'myOutfits'.tr(), icon: Icons.auto_awesome_rounded),
         ],
       ),
     );
@@ -157,7 +163,7 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
-          return Center(child: Text('لا يوجد ملابس بهذه المواصفات'.tr()));
+          return Center(child: Text('noClothesMatchingFilters'.tr()));
         }
         return GridView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -184,7 +190,7 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
         }
         final outfits = snapshot.data ?? [];
         if (outfits.isEmpty) {
-          return Center(child: Text('لا توجد تنسيقات بعد'.tr()));
+          return Center(child: Text('noOutfitsYet'.tr()));
         }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -207,7 +213,15 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(outfit.name.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    outfit.name.tr(), 
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 const Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.blue),
               ],
             ),
@@ -240,6 +254,42 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
     );
   }
 
+  // تنزيل صورة قطعة الملابس وحفظها في الهاتف
+  Future<void> _downloadClosetImage(BuildContext context, String url) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("savingImage".tr()),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        await Gal.putImageBytes(response.bodyBytes);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("imageSavedSuccess".tr()),
+              backgroundColor: Colors.teal,
+            ),
+          );
+        }
+      } else {
+        throw Exception("Failed to download image. Status: ${response.statusCode}");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("saveFailed".tr(args: [e.toString()])),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   // بناء بطاقة القطعة الفردية في الخزانة مع خيار الحذف
   Widget _buildItemCard(BuildContext context, ClosetItemModel item, ClosetViewModel viewModel) {
      return GlassCard(
@@ -249,13 +299,51 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: CachedNetworkImage(
-                imageUrl: item.imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(color: Colors.grey[100]),
-              ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => FullScreenImageViewer(
+                            imageUrl: item.imageUrl,
+                            category: item.category,
+                            color: item.color,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Hero(
+                      tag: item.imageUrl,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: CachedNetworkImage(
+                          imageUrl: item.imageUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(color: Colors.grey[100]),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.download_rounded, color: Colors.white, size: 18),
+                      onPressed: () => _downloadClosetImage(context, item.imageUrl),
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(6),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Padding(
@@ -263,15 +351,29 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.category.tr(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    Text(item.color.tr(), style: TextStyle(color: context.colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 11)),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.category.tr(), 
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        item.color.tr(), 
+                        style: TextStyle(color: context.colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
                   onPressed: () => _showDeleteDialog(context, item, viewModel),
                 ),
               ],
@@ -287,16 +389,16 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('حذف من الخزانة'.tr()),
-        content: Text('هل أنت متأكد من حذف هذه القطعة؟'.tr()),
+        title: Text('deleteFromCloset'.tr()),
+        content: Text('deleteConfirmGarment'.tr()),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('الغاء'.tr())),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('cancel'.tr())),
           TextButton(
             onPressed: () {
               viewModel.deleteItem(item.id);
               Navigator.pop(context);
             },
-            child: Text('حذف'.tr(), style: const TextStyle(color: Colors.red)),
+            child: Text('delete'.tr(), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -310,13 +412,13 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          _filterChip(context, 'الكل', viewModel.selectedCategory == null, () => viewModel.filterByCategory(null)),
+          _filterChip(context, 'all', viewModel.selectedCategory == null, () => viewModel.filterByCategory(null)),
           const SizedBox(width: 8),
-          _filterChip(context, 'علوي', viewModel.selectedCategory == 'top', () => viewModel.filterByCategory('top')),
+          _filterChip(context, 'tops', viewModel.selectedCategory == 'top', () => viewModel.filterByCategory('top')),
           const SizedBox(width: 8),
-          _filterChip(context, 'سفلي', viewModel.selectedCategory == 'bottom', () => viewModel.filterByCategory('bottom')),
+          _filterChip(context, 'bottoms', viewModel.selectedCategory == 'bottom', () => viewModel.filterByCategory('bottom')),
           const SizedBox(width: 8),
-          _filterChip(context, 'أحذية', viewModel.selectedCategory == 'shoes', () => viewModel.filterByCategory('shoes')),
+          _filterChip(context, 'shoes', viewModel.selectedCategory == 'shoes', () => viewModel.filterByCategory('shoes')),
         ],
       ),
     );

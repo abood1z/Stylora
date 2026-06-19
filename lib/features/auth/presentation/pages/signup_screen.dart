@@ -175,6 +175,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
             'age': int.tryParse(_ageController.text),
             'skinColor': '#${_selectedSkinTone.toARGB32().toRadixString(16).substring(2)}',
           });
+        } else if (_selectedRole == 'merchant') {
+          additionalData.addAll({
+            'storeName': _nameController.text.trim(),
+            'name': _nameController.text.trim(),
+          });
         }
 
         // 2. حفظ بيانات المستخدم الإضافية في Firestore
@@ -183,6 +188,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
           name: _nameController.text.trim(),
           additionalData: additionalData,
         );
+        
+        // 3. تحديث الإعدادات للتأكد من اكتمال الملف الشخصي والتعرف على دور المستخدم
+        await ref.read(settingsProvider.notifier).loadRemoteSettings(userCredential.user!.uid);
+        
+        TextInput.finishAutofillContext(shouldSave: true);
       }
 
       if (mounted) context.go('/home');
@@ -210,8 +220,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
         );
         if (mounted) {
             // تحديث الإعدادات للكشف عن نقص بيانات الملف الشخصي (Profile Incomplete)
-            ref.read(settingsProvider.notifier).loadRemoteSettings(userCredential.user!.uid);
-            context.go('/home');
+            await ref.read(settingsProvider.notifier).loadRemoteSettings(userCredential.user!.uid);
+            if (mounted) context.go('/home');
         }
       }
     } catch (e) {
@@ -284,68 +294,77 @@ class _SignupScreenState extends ConsumerState<SignupScreen> with SingleTickerPr
                               child: GlassCard(
                                 padding: const EdgeInsets.all(20),
                                 borderRadius: 32,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    CustomTextField(label: 'enterName'.tr(), hint: 'John Doe', controller: _nameController, prefixIcon: Icons.person_outline),
-                                    const SizedBox(height: 12),
-                                    CustomTextField(label: 'email'.tr(), hint: 'user@example.com', controller: _emailController, prefixIcon: Icons.email_outlined),
-                                    const SizedBox(height: 16),
-                                    _buildRoleSelector(),
-                                    if (_selectedRole == 'user') ...[
+                                child: AutofillGroup(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildRoleSelector(),
                                       const SizedBox(height: 16),
-                                      Row(
+                                      if (_selectedRole == 'merchant') ...[
+                                        CustomTextField(label: 'storeName'.tr(), hint: 'My Awesome Store', controller: _nameController, prefixIcon: Icons.store_outlined, autofillHints: const [AutofillHints.organizationName]),
+                                      ] else ...[
+                                        CustomTextField(label: 'enterName'.tr(), hint: 'John Doe', controller: _nameController, prefixIcon: Icons.person_outline, autofillHints: const [AutofillHints.name]),
+                                      ],
+                                      const SizedBox(height: 12),
+                                      CustomTextField(label: 'email'.tr(), hint: 'user@example.com', controller: _emailController, prefixIcon: Icons.email_outlined, autofillHints: const [AutofillHints.email]),
+                                      const SizedBox(height: 16),
+                                      if (_selectedRole == 'user') ...[
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(child: CustomTextField(label: 'heightLabel'.tr(), hint: '175', controller: _heightController, prefixIcon: Icons.height, keyboardType: TextInputType.number)),
+                                            const SizedBox(width: 12),
+                                            Expanded(child: CustomTextField(label: 'weightLabel'.tr(), hint: '70', controller: _weightController, prefixIcon: Icons.monitor_weight_outlined, keyboardType: TextInputType.number)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        CustomTextField(label: 'age'.tr(), hint: '25', controller: _ageController, prefixIcon: Icons.calendar_today_outlined, keyboardType: TextInputType.number),
+                                        const SizedBox(height: 16),
+                                        _buildSkinTonePicker(),
+                                      ],
+                                      const SizedBox(height: 24),
+                                      const Divider(),
+                                      const SizedBox(height: 24),
+                                      CustomTextField(
+                                        label: 'password'.tr(),
+                                        hint: '••••••••',
+                                        controller: _passwordController,
+                                        isPassword: true,
+                                        obscureText: _obscurePassword,
+                                        prefixIcon: Icons.lock_outline_rounded,
+                                        onChanged: _updateValidation,
+                                        autofillHints: const [AutofillHints.newPassword],
+                                        suffixIcon: IconButton(
+                                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: context.colorScheme.onSurface.withValues(alpha: 0.4)),
+                                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Column(
                                         children: [
-                                          Expanded(child: CustomTextField(label: 'heightLabel'.tr(), hint: '175', controller: _heightController, prefixIcon: Icons.height, keyboardType: TextInputType.number)),
-                                          const SizedBox(width: 12),
-                                          Expanded(child: CustomTextField(label: 'weightLabel'.tr(), hint: '70', controller: _weightController, prefixIcon: Icons.monitor_weight_outlined, keyboardType: TextInputType.number)),
+                                          _buildRequirementItem('min8Chars'.tr(), _hasMinLength),
+                                          _buildRequirementItem('oneUppercase'.tr(), _hasUppercase),
+                                          _buildRequirementItem('oneNumber'.tr(), _hasNumber),
                                         ],
                                       ),
                                       const SizedBox(height: 12),
-                                      CustomTextField(label: 'age'.tr(), hint: '25', controller: _ageController, prefixIcon: Icons.calendar_today_outlined, keyboardType: TextInputType.number),
-                                      const SizedBox(height: 16),
-                                      _buildSkinTonePicker(),
+                                      CustomTextField(
+                                        label: 'confirmPassword'.tr(),
+                                        hint: '••••••••',
+                                        controller: _confirmPasswordController,
+                                        isPassword: true,
+                                        obscureText: _obscureConfirmPassword,
+                                        prefixIcon: Icons.check_circle_outline_rounded,
+                                        autofillHints: const [AutofillHints.newPassword],
+                                        suffixIcon: IconButton(
+                                          icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: context.colorScheme.onSurface.withValues(alpha: 0.4)),
+                                          onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      CustomButton(onPressed: _signup, text: 'signup'.tr(), isLoading: _isLoading),
                                     ],
-                                    const SizedBox(height: 24),
-                                    const Divider(),
-                                    const SizedBox(height: 24),
-                                    CustomTextField(
-                                      label: 'password'.tr(),
-                                      hint: '••••••••',
-                                      controller: _passwordController,
-                                      isPassword: true,
-                                      obscureText: _obscurePassword,
-                                      prefixIcon: Icons.lock_outline_rounded,
-                                      onChanged: _updateValidation,
-                                      suffixIcon: IconButton(
-                                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: context.colorScheme.onSurface.withValues(alpha: 0.4)),
-                                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Column(
-                                      children: [
-                                        _buildRequirementItem('min8Chars'.tr(), _hasMinLength),
-                                        _buildRequirementItem('oneUppercase'.tr(), _hasUppercase),
-                                        _buildRequirementItem('oneNumber'.tr(), _hasNumber),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    CustomTextField(
-                                      label: 'confirmPassword'.tr(),
-                                      hint: '••••••••',
-                                      controller: _confirmPasswordController,
-                                      isPassword: true,
-                                      obscureText: _obscureConfirmPassword,
-                                      prefixIcon: Icons.check_circle_outline_rounded,
-                                      suffixIcon: IconButton(
-                                        icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: context.colorScheme.onSurface.withValues(alpha: 0.4)),
-                                        onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 24),
-                                    CustomButton(onPressed: _signup, text: 'signup'.tr(), isLoading: _isLoading),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),

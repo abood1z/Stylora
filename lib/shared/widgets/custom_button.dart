@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/utils/context_ext.dart';
+import '../../core/theme/app_theme.dart';
 
 // ودجت الزر المخصص (Custom Button)
 // يستخدم في كافة أنحاء التطبيق لتوحيد شكل الأزرار وتجربة المستخدم
@@ -30,7 +31,7 @@ class CustomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     // تحديد اللون المستخدم بناءً على اللون الممرر أو لون السمة الأساسي
     final themeColor = color ?? context.colorScheme.primary;
-    
+
     return SizedBox(
       width: width ?? double.infinity,
       child: ElevatedButton(
@@ -48,9 +49,15 @@ class CustomButton extends StatelessWidget {
           elevation: (isOutlined || isLoading) ? 0 : 8,
           shadowColor: themeColor.withValues(alpha: 0.4),
           // إضافة حدود برواز للزر إذا كان من نوع Outlined
-          side: isOutlined ? BorderSide(color: themeColor, width: 2) : BorderSide.none,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          padding: const EdgeInsets.symmetric(vertical: 18),
+          side: isOutlined
+              ? BorderSide(color: themeColor, width: 2)
+              : BorderSide.none,
+          // 📐 تطبيق انحناء الزوايا والارتفاع الموحدين من ملف الثيم العام AppTheme
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.buttonRadius),
+          ),
+          minimumSize: Size(width ?? double.infinity, AppTheme.buttonHeight),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
         child: isLoading
             ? SizedBox(

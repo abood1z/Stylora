@@ -1,14 +1,13 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/services/cloudinary_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:image/image.dart' as img;
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/utils/context_ext.dart';
 import '../../../../core/widgets/glass_card.dart';
@@ -18,7 +17,6 @@ import '../../../../core/models/outfit_model.dart';
 import '../../../../core/services/outfit_generator_service.dart';
 import '../../../../core/services/ai_model_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:typed_data';
 
 // شاشة اقتراحات الذكاء الاصطناعي (AI Suggestions Screen)
 // تقوم بتحليل صور الملابس واستخراج النوع واللون ثم اقتراح تنسيقات مناسبة من الخزانة أو المتجر
@@ -32,16 +30,25 @@ class AISuggestionsScreen extends StatefulWidget {
 class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
   File? _image; // ملف الصورة الأساسية
   List<File> _selectedFiles = []; // قائمة الملفات المختارة للمعالجة
-  List<AssetEntity> _selectedAssets = []; // الأصول الأصلية من المعرض
-  bool _isLoading = false; 
-  bool _isModelsLoaded = false; 
-  String _predictedColor = ''; 
-  String _predictedType = ''; 
-  String? _predictedSleeve; 
-  String _selectedSeason = 'summer'; 
-  bool _showConfirmButton = false; 
-  Uint8List? _processedImageBytes; 
-  Uint8List? _maskOverlayBytes; 
+  bool _isLoading = false;
+  bool _isModelsLoaded = false;
+  String _predictedColor = '';
+  String _predictedType = '';
+  String? _predictedSleeve;
+  String _selectedSeason = 'summer';
+  bool _showConfirmButton = false;
+  Uint8List? _processedImageBytes;
+  Uint8List? _maskOverlayBytes;
+
+  // خيارات التنسيق التي يمكن للمستخدم اختيارها وتعديلها
+  final List<Map<String, String>> _matchingOptions = [
+    {'id': 'trousers'},
+    {'id': 'shoes'},
+    {'id': 'jacket'},
+    {'id': 'shirt'},
+    {'id': 'hat'},
+  ];
+  final Set<String> _selectedMatchingGroups = {};
 
   // ثوابت الألوان للتصميم الداكن الفاخر
   static const Color kDeepCharcoal = Color(0xFF121212);
@@ -57,7 +64,8 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
   Future<void> _initModels() async {
     _detectCurrentSeason(); // تحديد الموسم تلقائياً
     try {
-      await AIModelService().loadModels(); // الاعتماد على الخدمة المركزية الموحدة
+      await AIModelService()
+          .loadModels(); // الاعتماد على الخدمة المركزية الموحدة
       if (mounted) {
         setState(() {
           _isModelsLoaded = true;
@@ -67,7 +75,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
       debugPrint('Error loading models: $e');
       if (mounted) {
         context.showSnackBar(
-          'فشل تحميل نماذج الذكاء الاصطناعي: $e',
+          'failedToLoadAIModels'.tr(args: [e.toString()]),
           isError: true,
         );
       }
@@ -85,63 +93,15 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
     }
   }
 
-  // قوائم التصنيفات المتوفرة في النماذج المدربة
-  final List<String> _colorLabels = [
-    'black',
-    'blue',
-    'brown',
-    'green',
-    'grey',
-    'orange',
-    'pink',
-    'purple',
-    'red',
-    'silver',
-    'white',
-    'yellow',
-  ];
-  final List<String> _typeLabels = [
-    'Blazer',
-    'Blouse',
-    'Capris',
-    'Cardigan',
-    'Chinos',
-    'Coat',
-    'Crop',
-    'Culottes',
-    'Cutoffs',
-    'Dress',
-    'Halter',
-    'Henley',
-    'Hoodie',
-    'Jacket',
-    'Jeans',
-    'Jersey',
-    'Joggers',
-    'Jumpsuit',
-    'Kimono',
-    'Leggings',
-    'Others',
-    'Pants',
-    'Parka',
-    'Poncho',
-    'Romper',
-    'Shorts',
-    'Skirt',
-    'Sweater',
-    'Tank',
-    'Tee',
-    'Top',
-    'Trunks',
-    'Turtleneck',
-  ];
-
   // طلب صلاحيات الوصول للصور بشكل احترافي
   Future<bool> _requestPermission() async {
-    final PermissionState ps = await PhotoManager.requestPermissionExtended();
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
     if (ps.isAuth) return true;
     if (mounted) {
-      context.showSnackBar('نحتاج لصلاحية الوصول للصور لاختيار ملابسك 📸', isError: true);
+      context.showSnackBar(
+        'نحتاج لصلاحية الوصول للصور لاختيار ملابسك 📸',
+        isError: true,
+      );
     }
     return false;
   }
@@ -150,6 +110,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
   Future<void> _pickAssets() async {
     final hasPermission = await _requestPermission();
     if (!hasPermission) return;
+    if (!mounted) return;
 
     final List<AssetEntity>? result = await AssetPicker.pickAssets(
       context,
@@ -158,12 +119,8 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
         requestType: RequestType.image,
         gridCount: 4, // مثل واتساب
         pageSize: 80, // Lazy Loading
-        themeColor: context.colorScheme.primary,
         textDelegate: const ArabicAssetPickerTextDelegate(),
         pickerTheme: AssetPicker.themeData(context.colorScheme.primary),
-        thumbnailConfig: const ThumbnailConfig(
-          size: ThumbnailSize.square(200), // أحجام صغيرة لسرعة التحميل
-        ),
       ),
     );
 
@@ -175,7 +132,6 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
       }
 
       setState(() {
-        _selectedAssets = result;
         _selectedFiles = files;
         _image = files.first; // نستخدم الأولى كصورة أساسية للعرض
         _detectedItems = [];
@@ -201,34 +157,47 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
     }
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      await _pickFromCamera();
+    } else {
+      await _pickAssets();
+    }
+  }
+
   List<Map<String, dynamic>> _detectedItems = []; // قائمة القطع المكتشفة
   int _selectedItemIndex = 0; // القطعة المختارة حالياً
 
   // تشغيل الاستدلال على كافة الصور المختارة
   Future<void> _runInference() async {
     if (_selectedFiles.isEmpty) return;
-    
+
     setState(() => _isLoading = true);
     try {
       final aiService = AIModelService();
       final List<Map<String, dynamic>> allResults = [];
-      
+
       for (final file in _selectedFiles) {
         final results = await aiService.analyzeImage(file);
         allResults.addAll(results);
       }
-      
+
       // توليد صورة الـ Mask Overlay لأول صورة كمثال (أو دمجها)
       Uint8List? overlayBytes;
       if (allResults.isNotEmpty) {
         try {
-          final originalImg = img.decodeImage(_selectedFiles.first.readAsBytesSync());
+          final originalImg = img.decodeImage(
+            _selectedFiles.first.readAsBytesSync(),
+          );
           if (originalImg != null) {
-            final overlayImg = aiService.generateMaskOverlay(originalImg, allResults);
+            final overlayImg = aiService.generateMaskOverlay(
+              originalImg,
+              allResults,
+            );
             overlayBytes = Uint8List.fromList(img.encodePng(overlayImg));
           }
         } catch (e) {
-           debugPrint('Error generating overlay: $e');
+          debugPrint('Error generating overlay: $e');
         }
       }
 
@@ -242,7 +211,9 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
       });
     } catch (e) {
       debugPrint('Error running multi-image inference: $e');
-      if (mounted) context.showSnackBar('حدث خطأ أثناء تحليل الصور', isError: true);
+      if (mounted) {
+        context.showSnackBar('حدث خطأ أثناء تحليل الصور', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -256,9 +227,11 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
       // كود تشخيصي للتأكد من نوع البيانات ومنع الانهيار
       final colorData = item['color'];
       final categoryData = item['category'];
-      
+
       if (colorData is Future) {
-        debugPrint('CRITICAL: color is still a Future! This means the build is STALE.');
+        debugPrint(
+          'CRITICAL: color is still a Future! This means the build is STALE.',
+        );
         _predictedColor = 'جاري التحميل...';
       } else {
         _predictedColor = (colorData as String?) ?? 'غير معروف';
@@ -270,23 +243,43 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
       } else {
         _predictedType = (categoryData as String?) ?? 'غير معروف';
       }
-      
+
       _predictedSleeve = item['sleeve'] as String?;
       _processedImageBytes = item['imageBytes'] as Uint8List?;
-    });
-  }
 
-  // الحصول على التصنيف صاحب أعلى احتمالية من مخرجات النموذج
-  String _getLabel(List<double> scores, List<String> labels) {
-    int maxIndex = 0;
-    double maxScore = -1.0;
-    for (int i = 0; i < scores.length; i++) {
-      if (scores[i] > maxScore) {
-        maxScore = scores[i];
-        maxIndex = i;
+      // تحديد خيارات التنسيق التلقائية بناءً على نوع القطعة المكتشفة
+      _selectedMatchingGroups.clear();
+      final cat = _predictedType.toLowerCase();
+
+      final tops = [
+        'top',
+        'dress',
+        'outerwear',
+        'blazer',
+        'coat',
+        'denim_jacket',
+        'hoodie',
+        'jacket',
+        'polo',
+        'shirt',
+        'shirt2',
+        'sweater',
+        't_shirt',
+        'track_jacket',
+      ];
+      final bottoms = ['pants', 'shorts', 'skirt', 'rok', 'trousers', 'jeans'];
+      final shoes = ['shoes', 'boots', 'sneakers', 'heels', 'sandals'];
+
+      if (tops.contains(cat)) {
+        _selectedMatchingGroups.addAll(['trousers', 'shoes']);
+      } else if (bottoms.contains(cat)) {
+        _selectedMatchingGroups.addAll(['shirt', 'shoes']);
+      } else if (shoes.contains(cat)) {
+        _selectedMatchingGroups.addAll(['trousers', 'shirt']);
+      } else {
+        _selectedMatchingGroups.addAll(['trousers', 'shoes']);
       }
-    }
-    return maxIndex < labels.length ? labels[maxIndex] : 'غير معروف';
+    });
   }
 
   // التعامل مع عملية التأكيد والرفع بناءً على خيار المستخدم
@@ -372,11 +365,14 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
 
     // 4. توليد تنسيق ذكي وتنسيق مقترح من المتاجر (فقط إذا طلب المستخدم ذلك)
     if (showSuggestions) {
+      final targetGroups = _selectedMatchingGroups.toList();
       final outfit = await OutfitGeneratorService().generateSmartOutfit(
         newItem,
+        targetGroups: targetGroups,
       );
       final storeMatches = await OutfitGeneratorService().generateStoreMatches(
         newItem,
+        targetGroups: targetGroups,
       );
 
       if (mounted) {
@@ -391,9 +387,10 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
 
     // إرسال إشعار محلي بالنجاح
     await NotificationService.showLocalNotification(
-      title: 'إضافة رائعة لخزانتك ✨',
-      body:
-          'تم إضافة ${_predictedType.tr()} بنجاح باللون ${_getColorNameInArabic(_predictedColor)}.',
+      title: 'greatAdditionCloset'.tr(),
+      body: 'addedSuccessfullyWithColor'.tr(
+        args: [_predictedType.tr(), _getColorNameInArabic(_predictedColor)],
+      ),
       payload: '/matching',
     );
   }
@@ -429,7 +426,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'تمت الإضافة بنجاح ✨',
+                    'successfullyAdded'.tr(),
                     style: GoogleFonts.tajawal(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -449,13 +446,13 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                       children: [
                         _dialogTab(
                           context,
-                          'من خزانتي',
+                          'myWardrobe'.tr(),
                           selectedTab == 0,
                           () => setDialogState(() => selectedTab = 0),
                         ),
                         _dialogTab(
                           context,
-                          'تنسيق من المتاجر',
+                          'shopMatching'.tr(),
                           selectedTab == 1,
                           () => setDialogState(() => selectedTab = 1),
                         ),
@@ -470,14 +467,11 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                     if (outfit != null) ...[
                       _buildMatchSection(
                         context,
-                        'اقتراح ذكي لقطعتك الجديدة:',
+                        'smartSuggestionNewItem'.tr(),
                         outfit.itemImageUrls,
                       ),
                     ] else
-                      _buildEmptyMatch(
-                        context,
-                        'لا توجد قطع مطابقة في خزانتك حالياً.',
-                      ),
+                      _buildEmptyMatch(context, 'noMatchingItemsCloset'.tr()),
                   ] else ...[
                     if (storeMatches.isNotEmpty) ...[
                       // عرض جميع المنتجات المتاحة في المتاجر المتوافقة مع القطعة
@@ -490,10 +484,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                             ),
                           ),
                     ] else
-                      _buildEmptyMatch(
-                        context,
-                        'لا توجد قطع مطابقة في المتاجر لهذا اللون.',
-                      ),
+                      _buildEmptyMatch(context, 'noMatchingItemsShops'.tr()),
                   ],
 
                   const SizedBox(height: 24),
@@ -513,7 +504,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                         Navigator.pop(context); // العودة للشاشة الرئيسية
                       },
                       child: Text(
-                        'رائع، شكراً!',
+                        'greatThanks'.tr(),
                         style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -714,52 +705,11 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
     );
   }
 
-  // تحويل اسم اللون الإنجليزي للعربي للعرض في الإشعارات
+  // الحصول على اسم اللون المترجم للعرض
   String _getColorNameInArabic(String name) {
-    switch (name.toLowerCase()) {
-      case 'red':
-        return 'الأحمر';
-      case 'green':
-        return 'الأخضر';
-      case 'blue':
-        return 'الأزرق';
-      case 'yellow':
-        return 'الأصفر';
-      case 'black':
-        return 'الأسود';
-      case 'white':
-        return 'الأبيض';
-      case 'grey':
-        return 'الرمادي';
-      case 'brown':
-        return 'البني';
-      case 'pink':
-        return 'الوردي';
-      case 'orange':
-        return 'البرتقالي';
-      case 'purple':
-        return 'البنفسجي';
-      case 'silver':
-        return 'الفضي';
-      case 'navy':
-        return 'الكحلي';
-      case 'beige':
-        return 'البيج';
-      case 'maroon':
-        return 'العنابي';
-      case 'olive':
-        return 'الزيتي';
-      case 'teal':
-        return 'التركوازي';
-      case 'cream':
-        return 'الكريمي';
-      case 'gold':
-        return 'الذهبي';
-      case 'khaki':
-        return 'الكاكي';
-      default:
-        return 'المميز';
-    }
+    final key = name.toLowerCase().trim();
+    if (key == 'teal') return 'turquoise'.tr();
+    return key.tr() == key ? 'distinctive'.tr() : key.tr();
   }
 
   // الحصول على كائن Color من اسم اللون النصي للمعالجة في الواجهة
@@ -831,7 +781,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
             onPressed: () => Navigator.pop(context),
           ),
           title: Text(
-            'اقتراحات الذكاء الاصطناعي',
+            'outfitSuggestions'.tr(),
             style: GoogleFonts.tajawal(
               color: Colors.white,
               fontWeight: FontWeight.w500,
@@ -911,32 +861,44 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
           borderRadius: BorderRadius.circular(50),
           child: _processedImageBytes != null
               ? Container(
-                  color: context.colorScheme.surface.withValues(alpha: 0.05), // خلفية خفيفة للشفافية
+                  color: context.colorScheme.surface.withValues(
+                    alpha: 0.05,
+                  ), // خلفية خفيفة للشفافية
                   child: Stack(
                     children: [
-                      Center(child: Image.memory(_processedImageBytes!, fit: BoxFit.contain)),
+                      Center(
+                        child: Image.memory(
+                          _processedImageBytes!,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                       Positioned(
                         top: 20,
                         right: 20,
-                        child: _buildBadge('القطعة المختارة'),
+                        child: _buildBadge('selectedPiece'.tr()),
                       ),
                     ],
                   ),
                 )
               : (_maskOverlayBytes != null
-                  ? Stack(
-                      children: [
-                        Image.memory(_maskOverlayBytes!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-                        Positioned(
-                          top: 20,
-                          right: 20,
-                          child: _buildBadge('تم تحليل الملابس'),
-                        ),
-                      ],
-                    )
-                  : (_image != null
-                      ? Image.file(_image!, fit: BoxFit.cover)
-                      : _buildEmptyStateContent())),
+                    ? Stack(
+                        children: [
+                          Image.memory(
+                            _maskOverlayBytes!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
+                          Positioned(
+                            top: 20,
+                            right: 20,
+                            child: _buildBadge('clothingAnalyzed'.tr()),
+                          ),
+                        ],
+                      )
+                    : (_image != null
+                          ? Image.file(_image!, fit: BoxFit.cover)
+                          : _buildEmptyStateContent())),
         ),
       ),
     );
@@ -952,7 +914,11 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
       ),
       child: Text(
         text,
-        style: GoogleFonts.tajawal(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+        style: GoogleFonts.tajawal(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -968,7 +934,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
         ),
         const SizedBox(height: 24),
         Text(
-          'التقط الملابس',
+          'captureClothes'.tr(),
           style: GoogleFonts.tajawal(
             color: Colors.white38,
             fontSize: 16,
@@ -984,7 +950,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
       children: [
         Expanded(
           child: _buildGlassButton(
-            'الكاميرا',
+            'camera'.tr(),
             Icons.camera_outlined,
             () => _pickImage(ImageSource.camera),
           ),
@@ -992,7 +958,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
         const SizedBox(width: 16),
         Expanded(
           child: _buildGlassButton(
-            'المعرض',
+            'gallery'.tr(),
             Icons.image_outlined,
             () => _pickImage(ImageSource.gallery),
           ),
@@ -1054,7 +1020,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 4.0, bottom: 16),
             child: Text(
-              'نتائج التحليل:',
+              'analysisResults'.tr(),
               style: GoogleFonts.tajawal(
                 color: Colors.white70,
                 fontSize: 14,
@@ -1069,7 +1035,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
             child: Column(
               children: [
                 _buildAnalysisRow(
-                  'اللون المتوقع',
+                  'predictedColorLabel'.tr(),
                   _predictedColor.toLowerCase().tr(),
                   isColor: true,
                 ),
@@ -1077,23 +1043,94 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                   padding: EdgeInsets.symmetric(vertical: 16),
                   child: Divider(color: Colors.white12, height: 1),
                 ),
-                _buildAnalysisRow('نوع القطعة', _predictedType.tr()),
+                _buildAnalysisRow(
+                  'predictedTypeLabel'.tr(),
+                  _predictedType.tr(),
+                ),
                 if (_predictedSleeve != null) ...[
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
                     child: Divider(color: Colors.white12, height: 1),
                   ),
-                  _buildAnalysisRow('نوع الكم', _predictedSleeve!.tr()),
+                  _buildAnalysisRow(
+                    'predictedSleeveLabel'.tr(),
+                    _predictedSleeve!.tr(),
+                  ),
                 ],
               ],
             ),
           ),
           if (_showConfirmButton) ...[
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            _buildMatchingPreferencesSection(),
+            const SizedBox(height: 24),
             _buildChoiceButtons(), // عرض خياري التنسيق أو الحفظ فقط
           ],
         ],
       ),
+    );
+  }
+
+  // بناء قسم تفضيلات التنسيق (Chips لاختيار القطع المراد تلبيقها)
+  Widget _buildMatchingPreferencesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 4.0, bottom: 12),
+          child: Text(
+            'matchSuggestionInstructions'.tr(),
+            style: GoogleFonts.tajawal(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        GlassCard(
+          borderRadius: 24,
+          opacity: 0.03,
+          padding: const EdgeInsets.all(16),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _matchingOptions.map((opt) {
+              final isSelected = _selectedMatchingGroups.contains(opt['id']);
+              final label = 'matching_${opt['id']}'.tr();
+              return FilterChip(
+                label: Text(label),
+                selected: isSelected,
+                backgroundColor: Colors.white.withValues(alpha: 0.05),
+                selectedColor: context.colorScheme.primary,
+                labelStyle: GoogleFonts.tajawal(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                checkmarkColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: isSelected
+                        ? context.colorScheme.primary
+                        : Colors.white10,
+                    width: 1,
+                  ),
+                ),
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedMatchingGroups.add(opt['id']!);
+                    } else {
+                      _selectedMatchingGroups.remove(opt['id']!);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1102,16 +1139,16 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
     return Column(
       children: [
         _buildAnimatedChoice(
-          title: 'إظهار الوان وانواع التنسيقات المناسبه',
-          description: 'اقتراح قطع متناسقة من خزانتك والمتاجر',
+          title: 'showMatchingOptions'.tr(),
+          description: 'showMatchingOptionsDesc'.tr(),
           icon: Icons.auto_awesome_rounded,
           onTap: () => _handleConfirm(showSuggestions: true),
           isPrimary: true,
         ),
         const SizedBox(height: 16),
         _buildAnimatedChoice(
-          title: 'حفظ الصوره دون اقتراح شيء',
-          description: 'إضافة القطعة للخزانة فقط للاستخدام لاحقاً',
+          title: 'savePhotoOnly'.tr(),
+          description: 'savePhotoOnlyDesc'.tr(),
           icon: Icons.save_alt_rounded,
           onTap: () => _handleConfirm(showSuggestions: false),
           isPrimary: false,
@@ -1265,7 +1302,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'جاري استخراج سحر الأناقة...',
+            'extractingStyleMagic'.tr(),
             style: GoogleFonts.tajawal(
               color: Colors.white,
               fontSize: 14,
@@ -1285,8 +1322,12 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            'اختر القطعة للتحليل:',
-            style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold),
+            'selectItemForAnalysis'.tr(),
+            style: GoogleFonts.tajawal(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         SizedBox(
@@ -1299,7 +1340,7 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
               final item = _detectedItems[index];
               final bool isSelected = _selectedItemIndex == index;
               final Uint8List bytes = item['imageBytes'];
-              
+
               return GestureDetector(
                 onTap: () => _updateSelectedData(index),
                 child: AnimatedContainer(
@@ -1310,18 +1351,33 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                     color: kDarkSlateGrey,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isSelected ? context.colorScheme.primary : Colors.white.withValues(alpha: 0.05),
+                      color: isSelected
+                          ? context.colorScheme.primary
+                          : Colors.white.withValues(alpha: 0.05),
                       width: 2,
                     ),
-                    boxShadow: isSelected ? [
-                      BoxShadow(color: context.colorScheme.primary.withValues(alpha: 0.3), blurRadius: 10)
-                    ] : [],
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: context.colorScheme.primary.withValues(
+                                alpha: 0.3,
+                              ),
+                              blurRadius: 10,
+                            ),
+                          ]
+                        : [],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
                     child: Stack(
                       children: [
-                        Center(child: Image.memory(bytes, fit: BoxFit.contain, height: 70)),
+                        Center(
+                          child: Image.memory(
+                            bytes,
+                            fit: BoxFit.contain,
+                            height: 70,
+                          ),
+                        ),
                         if (isSelected)
                           Positioned(
                             top: 5,
@@ -1329,7 +1385,11 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                             child: CircleAvatar(
                               radius: 10,
                               backgroundColor: context.colorScheme.primary,
-                              child: const Icon(Icons.check, size: 12, color: Colors.white),
+                              child: const Icon(
+                                Icons.check,
+                                size: 12,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                       ],
@@ -1341,6 +1401,9 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
           ),
         ),
       ],
+    );
+  }
+
   // بناء شريط معاينة الصور المختارة قبل المعالجة
   Widget _buildSelectionPreview() {
     if (_selectedFiles.isEmpty) return const SizedBox.shrink();
@@ -1351,8 +1414,12 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            'الصور المختارة (${_selectedFiles.length}):',
-            style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold),
+            'selectedPhotosCount'.tr(args: [_selectedFiles.length.toString()]),
+            style: GoogleFonts.tajawal(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         SizedBox(
@@ -1399,7 +1466,11 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
                           color: Colors.redAccent,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.close, size: 14, color: Colors.white),
+                        child: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -1416,14 +1487,21 @@ class _AISuggestionsScreenState extends State<AISuggestionsScreen> {
               child: ElevatedButton.icon(
                 onPressed: _runInference,
                 icon: const Icon(Icons.auto_awesome_rounded),
-                label: Text('بدأ تحليل الملابس'.tr(), style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
+                label: Text(
+                  'clothingAnalysisStarted'.tr(),
+                  style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: context.colorScheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   elevation: 10,
-                  shadowColor: context.colorScheme.primary.withValues(alpha: 0.3),
+                  shadowColor: context.colorScheme.primary.withValues(
+                    alpha: 0.3,
+                  ),
                 ),
               ),
             ),

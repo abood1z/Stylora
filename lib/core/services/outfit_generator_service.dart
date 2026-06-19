@@ -94,12 +94,67 @@ class OutfitGeneratorService {
     't_shirt',
     'track_jacket',
     'dress',
+    'top',
+    'outerwear',
   ];
-  final List<String> _bottoms = ['trousers', 'shorts', 'jeans', 'rok'];
-  final List<String> _shoes = ['shoes', 'boots', 'sneakers'];
+  final List<String> _bottoms = [
+    'trousers',
+    'shorts',
+    'jeans',
+    'rok',
+    'pants',
+    'skirt',
+  ];
+  final List<String> _shoes = [
+    'shoes',
+    'boots',
+    'sneakers',
+    'heels',
+    'sandals',
+  ];
+
+  List<String> _getCategoryListForGroup(String groupName) {
+    switch (groupName.toLowerCase()) {
+      case 'trousers':
+      case 'بنطلون':
+      case 'bottoms':
+        return ['trousers', 'jeans', 'shorts', 'rok', 'pants', 'skirt'];
+      case 'shoes':
+      case 'بوت':
+      case 'حذاء':
+        return ['shoes', 'boots', 'sneakers', 'heels', 'sandals'];
+      case 'jacket':
+      case 'جاكيت':
+        return [
+          'jacket',
+          'denim_jacket',
+          'track_jacket',
+          'blazer',
+          'coat',
+          'outerwear',
+        ];
+      case 'shirt':
+      case 'قميص':
+        return [
+          'shirt',
+          'shirt2',
+          'polo',
+          't_shirt',
+          'sweater',
+          'hoodie',
+          'top',
+        ];
+      case 'hat':
+      case 'طاقية':
+      case 'طاقيه':
+        return ['hat'];
+      default:
+        return [groupName];
+    }
+  }
 
   /// توليد "تنسيق ذكي" (Smart Outfit) من خزانة المستخدم فور إضافة قطعة جديدة
-  Future<OutfitModel?> generateSmartOutfit(ClosetItemModel newItem) async {
+  Future<OutfitModel?> generateSmartOutfit(ClosetItemModel newItem, {List<String>? targetGroups}) async {
     try {
       final uid = newItem.userID;
       final category = newItem.category.toLowerCase();
@@ -117,39 +172,54 @@ class OutfitGeneratorService {
           .where((item) => item.id != newItem.id)
           .toList();
 
-      ClosetItemModel? top;
-      ClosetItemModel? bottom;
-      ClosetItemModel? shoe;
-
-      // 1. تحديد مكان القطعة الجديدة في الطقم (علوي، سفلي، أو حذاء)
-      if (_tops.contains(category)) {
-        top = newItem;
-      } else if (_bottoms.contains(category))
-        bottom = newItem;
-      else if (_shoes.contains(category))
-        shoe = newItem;
-
-      // 2. تحديد مجموعة الألوان التي ستتماشى مع هذه القطعة
+      // تحديد مجموعة الألوان التي ستتماشى مع هذه القطعة
       List<String> harmoniousColors =
           _colorHarmony[color] ?? ['black', 'white', 'blue'];
 
-      // 3. البحث عن "المتممات" المفقودة من داخل الخزانة (تنسيق داخلي)
-      top ??= _findMatch(closetItems, _tops, harmoniousColors);
-      bottom ??= _findMatch(closetItems, _bottoms, harmoniousColors);
-      shoe ??= _findMatch(closetItems, _shoes, harmoniousColors);
+      List<ClosetItemModel> finalItems = [newItem];
 
-      // تجميع القطع التي تم العثور عليها وحفظ الطقم إذا تكونت قطعتان على الأقل
-      List<ClosetItemModel> finalItems = [
-        if (top != null) top,
-        if (bottom != null) bottom,
-        if (shoe != null) shoe,
-      ];
+      if (targetGroups != null && targetGroups.isNotEmpty) {
+        for (var group in targetGroups) {
+          final categories = _getCategoryListForGroup(group);
+          // تجنب البحث عن فئة القطعة نفسها
+          if (categories.contains(category)) continue;
+
+          final matchedItem = _findMatch(closetItems, categories, harmoniousColors);
+          if (matchedItem != null) {
+            finalItems.add(matchedItem);
+          }
+        }
+      } else {
+        ClosetItemModel? top;
+        ClosetItemModel? bottom;
+        ClosetItemModel? shoe;
+
+        // 1. تحديد مكان القطعة الجديدة في الطقم (علوي، سفلي، أو حذاء)
+        if (_tops.contains(category)) {
+          top = newItem;
+        } else if (_bottoms.contains(category)) {
+          bottom = newItem;
+        } else if (_shoes.contains(category)) {
+          shoe = newItem;
+        }
+
+        // 3. البحث عن "المتممات" المفقودة من داخل الخزانة (تنسيق داخلي)
+        top ??= _findMatch(closetItems, _tops, harmoniousColors);
+        bottom ??= _findMatch(closetItems, _bottoms, harmoniousColors);
+        shoe ??= _findMatch(closetItems, _shoes, harmoniousColors);
+
+        finalItems = [
+          if (top != null) top,
+          if (bottom != null) bottom,
+          if (shoe != null) shoe,
+        ];
+      }
 
       if (finalItems.length >= 2) {
         final outfit = OutfitModel(
           id: '',
           userID: uid,
-          name: 'تنسيق ${newItem.season == 'Summer' ? 'صيفي' : 'شتوي'} متكامل',
+          name: newItem.season == 'Summer' ? 'completeSummerOutfit' : 'completeWinterOutfit',
           itemIds: finalItems.map((e) => e.id).toList(),
           itemImageUrls: finalItems.map((e) => e.imageUrl).toList(),
           createdAt: DateTime.now(),
@@ -194,16 +264,27 @@ class OutfitGeneratorService {
 
   /// اقتراح قطع من المتجر (Store Matches) تكمل القطعة المرفوعة حديثاً
   Future<List<StoreProductModel>> generateStoreMatches(
-    ClosetItemModel newItem,
-  ) async {
+    ClosetItemModel newItem, {
+    List<String>? targetGroups,
+  }) async {
     try {
       final category = newItem.category.toLowerCase();
       final color = newItem.color.toLowerCase();
       final season = newItem.season;
 
-      // تحديد ما نود اقتراحه (إذا أضاف المستخدم قميصاً، نقترح بنطالاً، والعكس صحيح)
-      bool isTop = _tops.contains(category);
-      List<String> targetCategories = isTop ? _bottoms : _tops;
+      List<String> targetCategories = [];
+      if (targetGroups != null && targetGroups.isNotEmpty) {
+        for (var group in targetGroups) {
+          targetCategories.addAll(_getCategoryListForGroup(group));
+        }
+      } else {
+        bool isTop = _tops.contains(category);
+        targetCategories = isTop ? _bottoms : _tops;
+      }
+
+      // إزالة فئة القطعة نفسها لتجنب تكرار نوع القطعة
+      targetCategories.removeWhere((cat) => cat == category);
+
       List<String> harmoniousColors =
           _colorHarmony[color] ?? ['black', 'white'];
 
@@ -218,7 +299,7 @@ class OutfitGeneratorService {
 
       if (snapshot.docs.isEmpty) return [];
 
-      // تصفية النتائج بناءً على الفئة المستهدفة (علوي أو سفلي)
+      // تصفية النتائج بناءً على الفئات المستهدفة
       return snapshot.docs
           .map((doc) => StoreProductModel.fromFirestore(doc))
           .where((p) => targetCategories.contains(p.category.toLowerCase()))

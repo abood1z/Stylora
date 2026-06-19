@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// خدمة المصادقة البيومترية (البصمة/الوجه)
 class BiometricAuthService {
@@ -26,10 +27,10 @@ class BiometricAuthService {
   }
 
   /// تنفيذ عملية التحقق من البصمة
-  Future<bool> authenticate({String reason = 'يرجى لمس البصمة لتسجيل الدخول'}) async {
+  Future<bool> authenticate({String? reason}) async {
     try {
       return await _auth.authenticate(
-        localizedReason: reason,
+        localizedReason: reason ?? 'biometricHint'.tr(),
         options: const AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: true,
@@ -73,5 +74,18 @@ class BiometricAuthService {
   Future<bool> isLinked() async {
     final isEnabled = await _storage.read(key: _keyEnabled);
     return isEnabled == 'true';
+  }
+
+  /// التحقق مما إذا كانت الميزة مفعلة لهذا الحساب تحديداً على هذا الجهاز
+  Future<bool> isLinkedForUser(String email) async {
+    final isEnabled = await _storage.read(key: _keyEnabled);
+    if (isEnabled != 'true') return false;
+    final linkedEmail = await _storage.read(key: _keyEmail);
+    return linkedEmail?.toLowerCase().trim() == email.toLowerCase().trim();
+  }
+
+  /// الحصول على البريد الإلكتروني للحساب المرتبط بالبصمة حالياً على الجهاز
+  Future<String?> getLinkedEmail() async {
+    return await _storage.read(key: _keyEmail);
   }
 }

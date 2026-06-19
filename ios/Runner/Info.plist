@@ -66,5 +66,24 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.948056401885-6liti3c0uirhlv9muoi1pfe793ffkoo2</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>يحتاج التطبيق إلى صلاحية الوصول للكاميرا لالتقاط صور المنتجات أو استخدام ميزة التجربة الافتراضية.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>يحتاج التطبيق إلى صلاحية الوصول لمعرض الصور لاختيار صور المنتجات.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>يحتاج التطبيق إلى صلاحية إضافة الصور إلى معرض الصور لحفظ نتائج تجربة الملابس وملابسك.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يحتاج التطبيق إلى صلاحية الميكروفون لتسجيل الفيديو إن لزم الأمر.</string>
 </dict>
 </plist>

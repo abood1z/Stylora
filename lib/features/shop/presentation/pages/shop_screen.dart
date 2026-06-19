@@ -6,7 +6,9 @@ import '../../../../core/utils/context_ext.dart';
 import '../viewmodels/shop_viewmodel.dart';
 import '../../../../core/models/product_model.dart';
 import '../../../../core/providers/settings_provider.dart';
+import '../../../../core/services/service_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 
 // شاشة المتجر الذكي (Smart Shop Screen)
 // تعرض قائمة بالمنتجات المتاحة من جميع المتاجر مع تحديثات لحظية وتصنيف ذكي
@@ -19,25 +21,39 @@ class ShopScreen extends ConsumerWidget {
     final viewModel = ref.watch(shopViewModelProvider);
     // الحصول على رمز العملة من الإعدادات
     final currencySymbol = ref.watch(settingsProvider).currencySymbol;
+    final currentUserUid = ref.watch(authServiceProvider).currentUser?.uid;
+
+    final role = ref.watch(settingsProvider).userData?['role'];
+    final isMerchant = role == 'merchant' || role == 'trader';
 
     return Scaffold(
+      floatingActionButton: isMerchant ? FloatingActionButton.extended(
+        onPressed: () => context.push('/add-product'),
+        backgroundColor: context.colorScheme.primary,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: Text('addProduct'.tr(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ) : null,
       appBar: AppBar(
-        title: Text('المتجر الذكي'.tr(), style: const TextStyle(fontWeight: FontWeight.w900)),
+        title: Text('smartShop'.tr(), style: const TextStyle(fontWeight: FontWeight.w900)),
+        centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          // أيقونة سلة التسوق (اختيارية)
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: GlassCard(
-              borderRadius: 12,
-              opacity: 0.1,
-              child: IconButton(
-                icon: const Icon(Icons.shopping_bag_outlined),
-                onPressed: () {},
+          if (!isMerchant)
+            // أيقونة سلة التسوق (اختيارية)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: GlassCard(
+                borderRadius: 12,
+                opacity: 0.1,
+                child: IconButton(
+                  icon: const Icon(Icons.shopping_bag_outlined),
+                  onPressed: () {
+                    context.push('/cart');
+                  },
+                ),
               ),
             ),
-          ),
         ],
       ),
       body: Container(
@@ -59,11 +75,11 @@ class ShopScreen extends ConsumerWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(child: Text('خطأ: ${snapshot.error}'));
+              return Center(child: Text("${'error'.tr()}: ${snapshot.error}"));
             }
             final products = snapshot.data ?? [];
             if (products.isEmpty) {
-              return Center(child: Text('لا توجد منتجات متاحة حالياً'.tr()));
+              return Center(child: Text('noProductsAvailable'.tr()));
             }
 
             return ListView.builder(
@@ -71,7 +87,7 @@ class ShopScreen extends ConsumerWidget {
               itemCount: products.length,
               itemBuilder: (context, index) {
                 final product = products[index];
-                return _buildProductItem(context, product, currencySymbol);
+                return _buildProductItem(context, product, currencySymbol, currentUserUid, ref);
               },
             );
           },
@@ -81,13 +97,20 @@ class ShopScreen extends ConsumerWidget {
   }
 
   // بناء عنصر منتج واحد في القائمة
-  Widget _buildProductItem(BuildContext context, ProductModel product, String currency) {
+  Widget _buildProductItem(BuildContext context, ProductModel product, String currency, String? currentUserUid, WidgetRef ref) {
+    final isOwner = currentUserUid == product.storeID;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: GlassCard(
-        borderRadius: 20,
-        padding: const EdgeInsets.all(12),
-        child: Row(
+      child: InkWell(
+        onTap: () {
+          final productMap = {'id': product.id, ...product.toMap()};
+          context.push('/shop/product/${product.id}', extra: productMap);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: GlassCard(
+          borderRadius: 20,
+          padding: const EdgeInsets.all(12),
+          child: Row(
           children: [
             // صورة المنتج مع تحميل ذكي (CachedNetworkImage)
             ClipRRect(
@@ -131,14 +154,72 @@ class ShopScreen extends ConsumerWidget {
             // عرض لون المنتج المصنف بالذكاء الاصطناعي
             Column(
               children: [
+                if (isOwner)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        final productMap = {'id': product.id, ...product.toMap()};
+                        context.push('/edit-product', extra: productMap);
+                      } else if (value == 'delete') {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text('confirmDelete'.tr()),
+                            content: Text('deleteConfirmProduct'.tr()),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: Text('cancel'.tr()),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: Text('delete'.tr(), style: const TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await ref.read(firestoreServiceProvider).deleteTraderProduct(product.id);
+                          if (context.mounted) {
+                            context.showSnackBar('productDeletedSuccess'.tr());
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit, size: 20),
+                            const SizedBox(width: 8),
+                            Text('edit'.tr()),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.delete, color: Colors.red, size: 20),
+                            const SizedBox(width: 8),
+                            Text('delete'.tr(), style: const TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  const Icon(Icons.shopping_cart_outlined, size: 20),
                 Chip(
                    backgroundColor: context.colorScheme.primary.withValues(alpha: 0.1),
                    label: Text(product.color.toLowerCase().tr(), style: const TextStyle(fontSize: 10)),
                 ),
-                const Icon(Icons.shopping_cart_outlined, size: 20),
               ],
             ),
           ],
+        ),
         ),
       ),
     );

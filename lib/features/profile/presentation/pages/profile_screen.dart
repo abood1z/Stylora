@@ -10,7 +10,6 @@ import '../../../../core/utils/context_ext.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/services/cloudinary_service.dart';
 import '../../../../core/services/service_providers.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 
 // شاشة الملف الشخصي (Profile Screen)
 // تعرض بيانات المستخدم، إحصائياته (أو بيانات المتجر للتاجر)، وتسمح بتعديل الصورة والإعدادات
@@ -111,20 +110,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
-            actions: [
-              // زر الإعدادات
-              Padding(
-                padding: const EdgeInsets.only(right: 16.0),
-                child: GlassCard(
-                  borderRadius: 12,
-                  opacity: 0.1,
-                  child: IconButton(
-                    icon: const Icon(Icons.settings_outlined),
-                    onPressed: () => context.push('/settings'),
-                  ),
-                ),
-              ),
-            ],
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -158,13 +143,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             context,
                             Icons.history_rounded,
                             'orderHistory'.tr(),
-                            onTap: () => context.showSnackBar('comingSoon'.tr()),
-                          ),
-                          _buildProfileItem(
-                            context,
-                            Icons.favorite_border_rounded,
-                            'wishlist'.tr(),
-                            onTap: () => context.showSnackBar('comingSoon'.tr()),
+                            onTap: () => context.push('/order-history'),
                           ),
                         ] else ...[
                           _buildProfileItem(
@@ -181,22 +160,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           'settings'.tr(),
                           onTap: () => context.push('/settings'),
                         ),
-                        if (!isGuest) ...[
-                          const Divider(height: 1, indent: 20, endIndent: 20),
-                          _buildProfileItem(
-                            context,
-                            Icons.logout_rounded,
-                            'logout'.tr(),
-                            color: context.colorScheme.error,
-                            onTap: () async {
-                              await FirebaseAuth.instance.signOut();
-                              ref.read(isGuestProvider.notifier).state = false;
-                              if (context.mounted) {
-                                context.go('/login');
-                              }
-                            },
-                          ),
-                        ],
                       ],
                     ),
                   ),

@@ -16,6 +16,8 @@ class CustomTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged; // استجابة عند تغيير النص
   final int maxLines; // عدد الأسطر المسموح بها
 
+  final Iterable<String>? autofillHints; // تلميحات الإكمال التلقائي
+
   const CustomTextField({
     super.key,
     required this.label,
@@ -29,6 +31,7 @@ class CustomTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.maxLines = 1,
+    this.autofillHints,
   });
 
   @override
@@ -44,7 +47,7 @@ class CustomTextField extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 8),
-        // حقل الإدخال الفعلي مع التنسيقات المعرفة في السمة العامة (Theme)
+        // hحقل الإدخال الفعلي مع التنسيقات المعرفة في السمة العامة (Theme)
         TextFormField(
           controller: controller,
           obscureText: isPassword ? obscureText : false,
@@ -52,6 +55,7 @@ class CustomTextField extends StatelessWidget {
           validator: validator,
           onChanged: onChanged,
           maxLines: maxLines,
+          autofillHints: autofillHints,
           decoration: InputDecoration(
             hintText: hint,
             // إضافة الأيقونة الجانبية إذا وجدت

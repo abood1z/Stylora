@@ -5,19 +5,19 @@ class DummyData {
     {
       'id': '1',
       'title': 'Casual Friday',
-      'imageUrl': 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500',
+      'imageUrl': 'https://images.unsplash.com/photo-1488161628813-04466f872be2?w=500',
       'matchScore': 95,
     },
     {
       'id': '2',
       'title': 'Office Setup',
-      'imageUrl': 'https://images.unsplash.com/photo-1539109132304-372873aee81b?w=500',
+      'imageUrl': 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500',
       'matchScore': 88,
     },
     {
       'id': '3',
       'title': 'Weekend Vibe',
-      'imageUrl': 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=500',
+      'imageUrl': 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=500',
       'matchScore': 92,
     },
   ];

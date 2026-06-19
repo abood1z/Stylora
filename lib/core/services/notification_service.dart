@@ -3,7 +3,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../router/app_router.dart';
+import 'package:easy_localization/easy_localization.dart';
+import '../router/navigation_keys.dart';
 
 
 // يجب أن تكون الدالة من المستوى الأعلى (Top-level function) لتعمل في الخلفية
@@ -89,6 +90,13 @@ class NotificationService {
     // التحقق من تفضيلات المستخدم قبل الإظهار
     final prefs = await SharedPreferences.getInstance();
     
+    // التحقق من المفتاح الرئيسي أولاً
+    final isMasterEnabled = prefs.getBool('notifications') ?? true;
+    if (!isMasterEnabled) {
+      debugPrint('🔕 All notifications suppressed by master switch');
+      return;
+    }
+    
     bool isEnabled = true;
     if (category == 'transactional') {
       isEnabled = prefs.getBool('transactionalNotifs') ?? true;
@@ -102,15 +110,14 @@ class NotificationService {
       debugPrint('🔕 Notification suppressed by user settings: $category');
       return;
     }
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'stylora_premium_notifications', // Channel ID جديد لتفعيل الصوت
-      'إشعارات ستايلورا المميزة', // Channel Name
-      channelDescription: 'قناة الإشعارات لتطبيق ستايلورا مع الصوت الخاص',
+      'notificationChannelName'.tr(), // Channel Name
+      channelDescription: 'notificationChannelDesc'.tr(),
       importance: Importance.max,
       priority: Priority.high,
       icon: '@mipmap/ic_launcher',
-      color: Color(0xFF1E1E1E),
-      sound: RawResourceAndroidNotificationSound('stylora_ping'),
+      color: const Color(0xFF1E1E1E),
       playSound: true,
     );
     
@@ -118,10 +125,9 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
-      sound: 'stylora_ping.wav',
     );
 
-    const NotificationDetails details = NotificationDetails(
+    final NotificationDetails details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );

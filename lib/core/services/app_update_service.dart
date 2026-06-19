@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 class AppUpdateService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -34,8 +35,14 @@ class AppUpdateService {
         }
       } else if (_isVersionLower(currentVersion, latestVersion)) {
         // تحديث اختياري (Optional Update): يمكن للمستخدم التجاهل والاستمرار
-        if (context.mounted) {
-          _showUpdateDialog(context, updateUrl, isForce: false);
+        final prefs = await SharedPreferences.getInstance();
+        final lastShown = prefs.getInt('optional_update_last_shown') ?? 0;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        
+        if (now - lastShown >= 24 * 60 * 60 * 1000) {
+          if (context.mounted) {
+            _showUpdateDialog(context, updateUrl, isForce: false);
+          }
         }
       }
     } catch (e) {
@@ -67,7 +74,7 @@ class AppUpdateService {
   void _showUpdateDialog(BuildContext context, String url, {required bool isForce}) {
     showDialog(
       context: context,
-      barrierDismissible: !isForce, // منع الإغلاق بالنقر خارجاً إذا كان إجبارياً
+      barrierDismissible: false, // منع الإغلاق بالنقر خارجاً سواء كان إجبارياً أو اختيارياً
       builder: (context) => PopScope(
         canPop: !isForce,
         child: AlertDialog(
@@ -91,15 +98,15 @@ class AppUpdateService {
               ),
               const SizedBox(height: 24),
               Text(
-                isForce ? 'تحديث إجباري متوفر 🚀' : 'نسخة جديدة متوفرة ✨',
+                isForce ? 'forceUpdateAvailable'.tr() : 'optionalUpdateAvailable'.tr(),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.tajawal(fontWeight: FontWeight.w900, fontSize: 18),
               ),
               const SizedBox(height: 12),
               Text(
                 isForce 
-                  ? 'يرجى تحديث التطبيق للاستمرار في استخدامه والحصول على الميزات الجديدة والأمان.'
-                  : 'هناك نسخة أحدث من Stylora متوفرة الآن! هل ترغب في التحديث للحصول على تجربة أفضل؟',
+                  ? 'forceUpdateDesc'.tr()
+                  : 'optionalUpdateDesc'.tr(),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.tajawal(fontSize: 13, height: 1.5, color: Colors.grey[600]),
               ),
@@ -115,7 +122,7 @@ class AppUpdateService {
                   ),
                   onPressed: () => _launchURL(url),
                   child: Text(
-                    'تحديث الآن',
+                    'updateNow'.tr(),
                     style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
@@ -123,9 +130,13 @@ class AppUpdateService {
               if (!isForce) ...[
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setInt('optional_update_last_shown', DateTime.now().millisecondsSinceEpoch);
+                    if (context.mounted) Navigator.pop(context);
+                  },
                   child: Text(
-                    'ليس الآن، لاحقاً',
+                    'later'.tr(),
                     style: GoogleFonts.tajawal(color: Colors.grey, fontWeight: FontWeight.w600),
                   ),
                 ),

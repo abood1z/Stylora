@@ -8,6 +8,7 @@ class ClosetItemModel {
   final String category; // تصنيف القطعة (مثل: قميص، بنطال، فستان)
   final String color; // لون القطعة المستخرج بواسطة الذكاء الاصطناعي
   final String season; // الموسم المناسب (صيف 'summer' أو شتاء 'winter')
+  final String? sleeve; // نوع الأكمام (أكمام طويلة، قصيرة، بدون أكمام)
   final DateTime? timestamp; // وقت إضافة القطعة
 
   ClosetItemModel({
@@ -17,6 +18,7 @@ class ClosetItemModel {
     required this.category,
     required this.color,
     required this.season,
+    this.sleeve,
     this.timestamp,
   });
 
@@ -31,6 +33,7 @@ class ClosetItemModel {
       category: data['category'] ?? '',
       color: data['color'] ?? '',
       season: data['season'] ?? 'summer',
+      sleeve: data['sleeve'],
       timestamp: ts?.toDate(),
     );
   }
@@ -43,6 +46,7 @@ class ClosetItemModel {
       'category': category,
       'color': color,
       'season': season,
+      if (sleeve != null) 'sleeve': sleeve,
       'timestamp': FieldValue.serverTimestamp(), // استخدام وقت الخادم لضمان الدقة
     };
   }

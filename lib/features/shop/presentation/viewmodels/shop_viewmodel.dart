@@ -25,8 +25,8 @@ class ShopViewModel extends ChangeNotifier {
     if ((role == 'merchant' || role == 'trader') && _currentUser != null) {
       return _firestoreService.watchTraderProducts(_currentUser.uid);
     }
-    // المستخدم العادي يرى بضاعة المتاجر الموجودة في دولته فقط
-    return _firestoreService.watchAvailableProducts(country: userCountry);
+    // المستخدم العادي يرى بضاعة المتاجر جميعها
+    return _firestoreService.watchAvailableProducts();
   }
 }
 

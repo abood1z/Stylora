@@ -22,7 +22,7 @@ Stylora is a modern fashion application dedicated to providing a unique and dist
 
 ---
 
-# Comprehensive Guide to Running the Stylora Project on Another Computer
+# Comprehensive Guide to Running the Stylora Project on Any Computer
 
 This file contains the basic steps and requirements you will need to run the **Stylora** project, built with the **Flutter** framework, on any new computer.
 
